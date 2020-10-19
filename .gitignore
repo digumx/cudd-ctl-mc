@@ -1,5 +1,6 @@
 *out*
 *bin*
+*build*
 *.vim*
 *tag*
 *cache*
