@@ -96,11 +96,13 @@ BDD BDD::universal_abstraction(int var_index)
     return BDD(manager, Cudd_bddUnivAbstract(manager, node, Cudd_bddIthVar(manager, var_index)));
 }
 
-void BDD::save_dot(const std::string& filename)
+void BDD::save_dot(const std::string& filename, bool draw_0_arc)
 {
+    // Node to draw
+    DdNode* nd = draw_0_arc ? node : Cudd_BddToAdd(manager, node);
     // Must use c-style files for compatibility
     FILE* file = fopen(filename.c_str(), "w");
     if(!file) throw std::runtime_error("Could not open file " + filename);
-    Cudd_DumpDot(manager, 1, &node, NULL, NULL, file);
+    Cudd_DumpDot(manager, 1, &nd, NULL, NULL, file);
     if(fclose(file) != 0) throw std::runtime_error("Could not safely close file " + filename); 
 } 

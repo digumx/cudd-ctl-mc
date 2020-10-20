@@ -84,7 +84,7 @@ class BDD
         /**
          * Print out a representation of the BDD in dot format
          */
-        void save_dot(const std::string& filename);
+        void save_dot(const std::string& filename, bool draw_0_arc = false);
 
 
     private:
