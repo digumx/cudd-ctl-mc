@@ -45,6 +45,13 @@ BDD::BDD(const BDD& other) : node(other.node)
     Cudd_Ref(node);
 }
 
+BDD& BDD::operator=(const BDD& other)
+{
+    Cudd_RecursiveDeref(BDD::manager, node);
+    node = other.node;
+    Cudd_Ref(node);
+}
+
 BDD::~BDD()
 {
     Cudd_RecursiveDeref(BDD::manager, node);
