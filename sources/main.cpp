@@ -7,7 +7,7 @@
 #include "cudd.h"
 #include "headers/bdd.h"
 
-DdManager* global_manager;
+
 
 /** 
  * While BDDs do represent boolean functions, they are not a representation that is very directly
@@ -16,27 +16,24 @@ DdManager* global_manager;
  * the issue by representing boolean functions as objects of type Var->BDD. The following define p
  * and q as such objects.
  */
-BDD p(int var_idx) { return !BDD(global_manager, var_idx); }           // p = v <=> 0 = !v
-BDD q(int var_idx) { return !p(var_idx); }                                  // p = !q
+BDD p(int var_idx) { return !BDD(var_idx); }                            // p = v <=> 0 = !v
+BDD q(int var_idx) { return !p(var_idx); }                              // p = !q
 
 /**
  * Similarly, we define the transition relation for the mod 2 counter as an object of type
  * Var->Var->BDD.
  */
-BDD trans(int v1_idx, int v2_idx) 
-{ 
-    return BDD(global_manager, v1_idx) ^ BDD(global_manager, v2_idx);  // x <=> !y = x^y
-}
+BDD trans(int v1_idx, int v2_idx) { return BDD(v1_idx) ^ BDD(v2_idx); } // x <=> !y = x^y
 
-/**
- * For now, the main function simply computes EX and AX for the transition function for a mod 2
- * counter
+
+
+
+/*
+ * For now, the main function simply computes EX, EXEX and AX for the transition function for a mod 2
+ * counter, and checks EXp = !p, EXEXp = p
  */
 int main(int argc, char** argv)
 {
-    // Init manager
-    global_manager = Cudd_Init(0, 0, CUDD_UNIQUE_SLOTS, CUDD_CACHE_SLOTS, 0);
-
     // We firstly define p, q as boolean function on var 0:
     BDD p_v0 = p(0);
     BDD q_v0 = q(0);
@@ -45,8 +42,10 @@ int main(int argc, char** argv)
     BDD EXp_v0 = (trans(0, 1) && p(1)).existential_abstraction(1);
     // Similary for AXp(v0) and EX(EXp)(v0)
     BDD AXp_v0 = (trans(0, 1) && p(1)).universal_abstraction(1);
+
+
     BDD EXEXp_v0 = (trans(0, 1) && 
-                        (trans(1, 2) && p(2)).existential_abstraction(2)
+                        (trans(1, 0) && p(0)).existential_abstraction(0)
                     ).existential_abstraction(1);
 
     // Print out all BDDs generated into dot files

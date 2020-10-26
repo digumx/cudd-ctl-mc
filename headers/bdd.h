@@ -27,13 +27,13 @@ class BDD
          * Constructor to create a new BDD representing just the variable with the given index. Must
          * be given a manager.
          */
-        BDD(DdManager* mngr, int var_index);
+        BDD(int var_index);
 
         /**
          * Constructs a BDD from a raw DdNode. Adds a reference to the DdNode. This should be
          * avoided, just use BDD instead.
          */
-        BDD(DdManager* mngr, DdNode* nd);
+        BDD(DdNode* nd);
 
         /**
          * Copy constructor
@@ -89,7 +89,7 @@ class BDD
 
     private:
         DdNode* node;
-        DdManager* manager;
+        static DdManager* manager;
 };
 
 #endif
