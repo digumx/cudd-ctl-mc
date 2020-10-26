@@ -29,6 +29,12 @@ BDD::BDD(int var_index)
     Cudd_Ref(node);
 }
 
+BDD::BDD(bool bconst)
+{
+    node = bconst ? Cudd_ReadZero(BDD::manager) : Cudd_ReadOne(BDD::manager);
+    Cudd_Ref(node);
+}
+
 BDD::BDD(DdNode* nd) : node(nd)
 {
     Cudd_Ref(node);

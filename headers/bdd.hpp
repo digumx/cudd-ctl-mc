@@ -30,11 +30,10 @@ class BDD
         BDD(int var_index);
 
         /**
-         * Constructs a BDD from a raw DdNode. Adds a reference to the DdNode. This should be
-         * avoided, just use BDD instead.
+         * Construct a BDD representing the constant function given by `bconst`
          */
-        BDD(DdNode* nd);
-
+        BDD(bool bconst);
+        
         /**
          * Copy constructor
          */
@@ -88,6 +87,8 @@ class BDD
 
 
     private:
+        BDD(DdNode* nd);
+        
         DdNode* node;
         static DdManager* manager;
 };
