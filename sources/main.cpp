@@ -5,7 +5,8 @@
 #include <iostream>
 
 #include "cudd.h"
-#include "headers/bdd.h"
+
+#include "headers/bdd.hpp"
 
 
 

@@ -2,7 +2,7 @@
  * This file implements the BDD class declared in `headers/bdd.hpp`.
  */
 
-#include "headers/bdd.h"
+#include "headers/bdd.hpp"
 
 // For some reason cudd needs declarations in these headers but does not include these within
 // cudd.h.....
