@@ -6,8 +6,8 @@
 #ifndef BDD_H
 #define BDD_H
 
-// Filenames are strings
-#include <string>
+#include <string>                   // Filenames
+#include <vector>                   // List of variables
 
 /** 
  * Forward declare DdNode and DdManager here
@@ -75,10 +75,13 @@ class BDD
         bool is_one();
 
         /**
-         * Abstract the BDD using quantifiers over variable with given index
+         * Abstract the BDD using quantifiers over variable with given index, or vector of variables
+         * with given indices
          */
         BDD existential_abstraction(int var_index); 
+        BDD existential_abstraction(std::vector<int> var_index); 
         BDD universal_abstraction  (int var_index); 
+        BDD universal_abstraction  (std::vector<int> var_index); 
 
         /**
          * Print out a representation of the BDD in dot format

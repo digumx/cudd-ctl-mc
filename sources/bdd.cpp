@@ -50,6 +50,7 @@ BDD& BDD::operator=(const BDD& other)
     Cudd_RecursiveDeref(BDD::manager, node);
     node = other.node;
     Cudd_Ref(node);
+    return *this;
 }
 
 BDD::~BDD()
@@ -106,7 +107,7 @@ bool BDD::is_zero() { return node == Cudd_ReadZero(BDD::manager); }
 bool BDD::is_one()  { return node == Cudd_ReadOne(BDD::manager);  }
 
 
-// More wrappers
+// Wrapper for quantifier eleminations
 BDD BDD::existential_abstraction(int var_index)
 {
     return BDD(Cudd_bddExistAbstract(BDD::manager, node, Cudd_bddIthVar(BDD::manager, var_index)));
@@ -114,6 +115,16 @@ BDD BDD::existential_abstraction(int var_index)
 BDD BDD::universal_abstraction(int var_index)
 {
     return BDD(Cudd_bddUnivAbstract(BDD::manager, node, Cudd_bddIthVar(BDD::manager, var_index)));
+}
+BDD BDD::existential_abstraction(std::vector<int> var_indices)
+{
+    return BDD(Cudd_bddExistAbstract(BDD::manager, node, 
+                                Cudd_IndicesToCube(BDD::manager, var_indices.data(), var_indices.size())));
+}
+BDD BDD::universal_abstraction(std::vector<int> var_indices)
+{
+    return BDD(Cudd_bddUnivAbstract(BDD::manager, node,
+                Cudd_IndicesToCube(BDD::manager, var_indices.data(), var_indices.size())));
 }
 
 
