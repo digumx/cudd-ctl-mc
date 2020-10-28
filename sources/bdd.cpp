@@ -40,6 +40,9 @@ BDD::BDD(DdNode* nd) : node(nd)
     Cudd_Ref(node);
 }
 
+BDD::BDD(std::vector<int> var_indices) 
+    : BDD(Cudd_IndicesToCube(BDD::manager, var_indices.data(), var_indices.size())) {}
+
 BDD::BDD(const BDD& other) : node(other.node)
 {
     Cudd_Ref(node);
@@ -116,15 +119,21 @@ BDD BDD::universal_abstraction(int var_index)
 {
     return BDD(Cudd_bddUnivAbstract(BDD::manager, node, Cudd_bddIthVar(BDD::manager, var_index)));
 }
-BDD BDD::existential_abstraction(std::vector<int> var_indices)
+BDD BDD::existential_abstraction(const BDD& cube)
 {
-    return BDD(Cudd_bddExistAbstract(BDD::manager, node, 
-                                Cudd_IndicesToCube(BDD::manager, var_indices.data(), var_indices.size())));
+    return BDD(Cudd_bddExistAbstract(BDD::manager, node, cube.node);
 }
-BDD BDD::universal_abstraction(std::vector<int> var_indices)
+BDD BDD::universal_abstraction(const BDD& cube)
 {
-    return BDD(Cudd_bddUnivAbstract(BDD::manager, node,
-                Cudd_IndicesToCube(BDD::manager, var_indices.data(), var_indices.size())));
+    return BDD(Cudd_bddUnivAbstract(BDD::manager, node, cube.node);
+}
+BDD BDD::existential_abstraction(std::vector<int> var_indices) 
+{ 
+    return existential_abstraction(BDD(var_indices));
+}
+BDD BDD::universal_abstraction(std::vector<int> var_indices) 
+{ 
+    return universal_abstraction(BDD(var_indices));
 }
 
 
