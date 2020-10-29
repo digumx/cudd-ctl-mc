@@ -31,7 +31,7 @@ BDD::BDD(int var_index)
 
 BDD::BDD(bool bconst)
 {
-    node = bconst ? Cudd_ReadZero(BDD::manager) : Cudd_ReadOne(BDD::manager);
+    node = bconst ? Cudd_ReadOne(BDD::manager) : Cudd_ReadLogicZero(BDD::manager);
     Cudd_Ref(node);
 }
 
@@ -39,8 +39,8 @@ BDD::BDD(DdNode* nd) : node(nd)
 {
     Cudd_Ref(node);
 }
-
-BDD::BDD(std::vector<int> var_indices) 
+// TODO: Decide between potentially changing the vector vs copying it over
+BDD::BDD(std::vector<int>& var_indices) 
     : BDD(Cudd_IndicesToCube(BDD::manager, var_indices.data(), var_indices.size())) {}
 
 BDD::BDD(const BDD& other) : node(other.node)
@@ -106,39 +106,39 @@ BDD BDD::operator!()
 // DdNode for a given BDD function is guaranteed to be unique
 bool operator==(const BDD& bddl, const BDD& bddr) { return bddl.node == bddr.node; }
 bool operator!=(const BDD& bddl, const BDD& bddr) { return bddl.node != bddr.node; }
-bool BDD::is_zero() { return node == Cudd_ReadZero(BDD::manager); }
-bool BDD::is_one()  { return node == Cudd_ReadOne(BDD::manager);  }
+bool BDD::is_zero() const { return node == Cudd_ReadZero(BDD::manager); }
+bool BDD::is_one()  const { return node == Cudd_ReadOne(BDD::manager);  }
 
 
 // Wrapper for quantifier eleminations
-BDD BDD::existential_abstraction(int var_index)
+BDD BDD::existential_abstraction(int var_index) const
 {
     return BDD(Cudd_bddExistAbstract(BDD::manager, node, Cudd_bddIthVar(BDD::manager, var_index)));
 }
-BDD BDD::universal_abstraction(int var_index)
+BDD BDD::universal_abstraction(int var_index) const
 {
     return BDD(Cudd_bddUnivAbstract(BDD::manager, node, Cudd_bddIthVar(BDD::manager, var_index)));
 }
-BDD BDD::existential_abstraction(const BDD& cube)
+BDD BDD::existential_abstraction(const BDD& cube) const
 {
-    return BDD(Cudd_bddExistAbstract(BDD::manager, node, cube.node);
+    return BDD(Cudd_bddExistAbstract(BDD::manager, node, cube.node));
 }
-BDD BDD::universal_abstraction(const BDD& cube)
+BDD BDD::universal_abstraction(const BDD& cube) const
 {
-    return BDD(Cudd_bddUnivAbstract(BDD::manager, node, cube.node);
+    return BDD(Cudd_bddUnivAbstract(BDD::manager, node, cube.node));
 }
-BDD BDD::existential_abstraction(std::vector<int> var_indices) 
+BDD BDD::existential_abstraction(std::vector<int>& var_indices) const 
 { 
     return existential_abstraction(BDD(var_indices));
 }
-BDD BDD::universal_abstraction(std::vector<int> var_indices) 
+BDD BDD::universal_abstraction(std::vector<int>& var_indices) const
 { 
     return universal_abstraction(BDD(var_indices));
 }
 
 
 // Utility functions
-void BDD::save_dot(const std::string& filename, bool draw_0_arc)
+void BDD::save_dot(const std::string& filename, bool draw_0_arc) const
 {
     DdNode* nd = draw_0_arc ? node : Cudd_BddToAdd(BDD::manager, node);  // Node to draw
     FILE* file = fopen(filename.c_str(), "w");                      // using c-file for compat

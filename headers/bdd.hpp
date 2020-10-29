@@ -35,9 +35,9 @@ class BDD
         BDD(bool bconst);
 
         /**
-         * Construct a cube BDD from a given vector of variables
+         * Construct a cube BDD from a given vector of variables. Note that the reference is not const.
          */
-        BDD(std::vector<int> var_indices);
+        BDD(std::vector<int>& var_indices);
         
         /**
          * Copy constructor
@@ -76,24 +76,24 @@ class BDD
          * Check if the BDD represents constant zero or constant one. This can be used to check
          * satisfiability or validity
          */
-        bool is_zero(); 
-        bool is_one();
+        bool is_zero()  const;
+        bool is_one()   const;
 
         /**
          * Abstract the BDD using quantifiers over variable with given index, or vector of variables
          * with given indices, or over variables in the set represented by a cube.
          */
-        BDD existential_abstraction(int var_index); 
-        BDD existential_abstraction(std::vector<int> var_indices); 
-        BDD existential_abstraction(const BDD& cube); 
-        BDD universal_abstraction  (int var_index); 
-        BDD universal_abstraction  (std::vector<int> var_indices); 
-        BDD universal_abstraction  (const BDD& cube); 
+        BDD existential_abstraction(int var_index) const; 
+        BDD existential_abstraction(std::vector<int>& var_indices) const; 
+        BDD existential_abstraction(const BDD& cube) const;
+        BDD universal_abstraction  (int var_index) const;
+        BDD universal_abstraction  (std::vector<int>& var_indices) const;
+        BDD universal_abstraction  (const BDD& cube) const;
 
         /**
          * Print out a representation of the BDD in dot format
          */
-        void save_dot(const std::string& filename, bool draw_0_arc = false);
+        void save_dot(const std::string& filename, bool draw_0_arc = false) const;
 
 
     private:

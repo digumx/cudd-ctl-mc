@@ -7,26 +7,24 @@
 #include "cudd.h"
 
 #include "headers/bdd.hpp"
+#include "headers/pred.hpp"
 
 
-
-/** 
- * While BDDs do represent boolean functions, they are not a representation that is very directly
- * invariant under renaming of bound variables. This combined with the fact that renaming variables
- * in a BDD is potentially complicated (and not directly available via the CUDD interface), we avoid
- * the issue by representing boolean functions as objects of type Var->BDD. The following define p
- * and q as such objects.
- */
-BDD p(int var_idx) { return !BDD(var_idx); }                            // p = v <=> 0 = !v
-BDD q(int var_idx) { return !p(var_idx); }                              // p = !q
-
-/**
- * Similarly, we define the transition relation for the mod 2 counter as an object of type
- * Var->Var->BDD.
- */
-BDD trans(int v1_idx, int v2_idx) { return BDD(v1_idx) ^ BDD(v2_idx); } // x <=> !y = x^y
-
-
+//int main(int argc, char** argv)
+//{
+//    /*BDD dd1(false);
+//    BDD dd2(0);
+//    dd1 |= dd2;
+//    dd1.save_dot("./out/dbg.dot");*/
+//
+//    DdManager* man = Cudd_Init(0, 0, CUDD_UNIQUE_SLOTS, CUDD_CACHE_SLOTS, 0);
+//    DdNode* dd1 = Cudd_ReadLogicZero(man);
+//    Cudd_Ref(dd1);
+//    DdNode* dd2 = Cudd_bddIthVar(man, 0);
+//    Cudd_Ref(dd2);
+//    DdNode* dd3 = Cudd_bddOr(man, dd1, dd2);
+//    Cudd_Ref(dd3);
+//}
 
 
 /*
@@ -35,30 +33,31 @@ BDD trans(int v1_idx, int v2_idx) { return BDD(v1_idx) ^ BDD(v2_idx); } // x <=>
  */
 int main(int argc, char** argv)
 {
-    // We firstly define p, q as boolean function on var 0:
-    BDD p_v0 = p(0);
-    BDD q_v0 = q(0);
+    // We define our state space to be over one bit
+    StateSpace sp(1);
 
-    // Now, we define EXp as a predicate on v0. Note that EXp(v0) Ev1:trans(v0,v1) and p(v1).
-    BDD EXp_v0 = (trans(0, 1) && p(1)).existential_abstraction(1);
-    // Similary for AXp(v0) and EX(EXp)(v0)
-    BDD AXp_v0 = (trans(0, 1) && p(1)).universal_abstraction(1);
+    // We firstly define p, q as predicates over sp
+    Predicate p = !Predicate(sp, 0);                                            // p = v0<=>0 = !v0
+    Predicate q = !p;                                                           // q = !p
 
+    // Then we define the transition relation over sp
+    Transition trans = Transition(sp, 0, false) ^ Transition(sp, 0, true);      // T(u, v) := u0^v0 
 
-    BDD EXEXp_v0 = (trans(0, 1) && 
-                        (trans(1, 0) && p(0)).existential_abstraction(0)
-                    ).existential_abstraction(1);
-
+    // Now, we get the predicates for EXp, AXp and EXEXp.
+    Predicate EXp = p.EX(trans);
+    Predicate AXp = p.AX(trans);
+    Predicate EXEXp = (p.EX(trans)).EX(trans);
+    
     // Print out all BDDs generated into dot files
-    p_v0.save_dot("./out/p_v0.dot");
-    q_v0.save_dot("./out/q_v0.dot");
-    EXp_v0.save_dot("./out/EXp_v0.dot");
-    AXp_v0.save_dot("./out/AXp_v0.dot");
-    EXEXp_v0.save_dot("./out/EXEXp_v0.dot");
+    p.get_bdd().save_dot("./out/p.dot");
+    q.get_bdd().save_dot("./out/q.dot");
+    EXp.get_bdd().save_dot("./out/EXp.dot");
+    AXp.get_bdd().save_dot("./out/AXp.dot");
+    EXEXp.get_bdd().save_dot("./out/EXEXp.dot");
 
     // Now we check if EXp <=> q and EXEXp <=> p. As EXp(v0) vs some other vi is just the same
     // function with different names for bound variables, we can just check EXp(v0) <=> q(v0) and so
     // on
-    std::cout << "EXp <=> q "       << (EXp_v0 == q_v0   ? "holds" : "does not hold") << std::endl;
-    std::cout << "EX(EXp) <=> p "   << (EXEXp_v0 == p_v0 ? "holds" : "does not hold") << std::endl;
+    std::cout << "EXp <=> q "       << (EXp == q   ? "holds" : "does not hold") << std::endl;
+    std::cout << "EX(EXp) <=> p "   << (EXEXp == p ? "holds" : "does not hold") << std::endl;
 }
