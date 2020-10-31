@@ -97,7 +97,7 @@ BDD& BDD::operator^=(const BDD& other)
     *this = *this ^ other;
     return *this;
 }
-BDD BDD::operator!()
+BDD BDD::operator!() const
 {
    return BDD(Cudd_Not(node));
 }
@@ -106,7 +106,7 @@ BDD BDD::operator!()
 // DdNode for a given BDD function is guaranteed to be unique
 bool operator==(const BDD& bddl, const BDD& bddr) { return bddl.node == bddr.node; }
 bool operator!=(const BDD& bddl, const BDD& bddr) { return bddl.node != bddr.node; }
-bool BDD::is_zero() const { return node == Cudd_ReadZero(BDD::manager); }
+bool BDD::is_zero() const { return node == Cudd_ReadLogicZero(BDD::manager); }
 bool BDD::is_one()  const { return node == Cudd_ReadOne(BDD::manager);  }
 
 

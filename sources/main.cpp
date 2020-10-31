@@ -44,9 +44,9 @@ int main(int argc, char** argv)
     Transition trans = Transition(sp, 0, false) ^ Transition(sp, 0, true);      // T(u, v) := u0^v0 
 
     // Now, we get the predicates for EXp, AXp and EXEXp.
-    Predicate EXp = p.EX(trans);
-    Predicate AXp = p.AX(trans);
-    Predicate EXEXp = (p.EX(trans)).EX(trans);
+    Predicate EXp = trans.EX(p);
+    Predicate AXp = trans.AX(p);
+    Predicate EXEXp = trans.EX(trans.EX(p));
     
     // Print out all BDDs generated into dot files
     p.get_bdd().save_dot("./out/p.dot");
@@ -60,4 +60,17 @@ int main(int argc, char** argv)
     // on
     std::cout << "EXp <=> q "       << (EXp == q   ? "holds" : "does not hold") << std::endl;
     std::cout << "EX(EXp) <=> p "   << (EXEXp == p ? "holds" : "does not hold") << std::endl;
+
+    // Check some very basic properties
+    Predicate EFp = trans.EF(p);
+    Predicate EGp = trans.EG(p);
+    EFp.get_bdd().save_dot("./out/EFp.dot");
+    EGp.get_bdd().save_dot("./out/GFp.dot");
+    (p || trans.EX(p)).get_bdd().save_dot("./out/dbg.dot");
+    trans.AX(p || trans.EX(p)).get_bdd().save_dot("./out/dbg2.dot");
+
+    std::cout << "EFp " << (trans.EF(p).is_false() ? "is unsat" : "is sat") << std::endl;
+    std::cout << "EGp " << (trans.EG(p).is_false() ? "is unsat" : "is sat") << std::endl;
+    std::cout << "AFp " << (trans.AF(p).is_false() ? "is unsat" : "is sat") << std::endl;
+    std::cout << "AG(!p => EX(p)) " << (trans.AG(p || trans.EX(p)).is_true() ? "is valid" : "is invalid") << std::endl;
 }

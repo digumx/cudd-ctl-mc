@@ -97,9 +97,102 @@ Transition& Transition::operator^=(const Transition& other) { return *this = *th
 Transition  Transition::operator! () { return Transition(space, !t_u_v, !t_v_u); }
 
 
+// CTL operators
+Predicate Transition::EX(const Predicate& pred) const
+{
+    if(space != pred.space) 
+        throw std::runtime_error("Transition and predicate state spaces do not match");
+    if(pred.is_p_u_repr)
+        return Predicate(space, (t_v_u && pred.p_u).existential_abstraction(space.cube_u), false);
+    else
+        return Predicate(space, (t_u_v && pred.p_v).existential_abstraction(space.cube_v), true);
+}
+Predicate Transition::EF(const Predicate& pred) const
+{
+    if(space != pred.space) 
+        throw std::runtime_error("Transition and predicate state spaces do not match");
+    Predicate acc(space, false);
+    Predicate nxt(space, false);
+    while((nxt = pred || EX(acc)) != acc) acc = nxt;
+    return acc;
+}
+Predicate Transition::EG(const Predicate& pred) const
+{
+    if(space != pred.space) 
+        throw std::runtime_error("Transition and predicate state spaces do not match");
+    Predicate acc(space, true);
+    Predicate nxt(space, false);
+    while((nxt = pred && EX(acc)) != acc) acc = nxt;
+    return acc;
+}
+Predicate Transition::EU(const Predicate& predl, const Predicate& predr) const
+{
+    if(space != predl.space || space != predr.space) 
+        throw std::runtime_error("Transition and predicate state spaces do not match");
+    Predicate acc(space, true);
+    Predicate nxt(space, false);
+    while((nxt = predl || (predr && EX(acc))) != acc) acc = nxt;
+    return acc;
+}
+Predicate Transition::ER(const Predicate& predl, const Predicate& predr) const
+{
+    if(space != predl.space || space != predr.space) 
+        throw std::runtime_error("Transition and predicate state spaces do not match");
+    Predicate acc(space, true);
+    Predicate nxt(space, false);
+    while((nxt = predr && (predl || EX(acc))) != acc) acc = nxt;
+    return acc;
+}
+Predicate Transition::AX(const Predicate& pred) const
+{
+    if(space != pred.space) 
+        throw std::runtime_error("Transition and predicate state spaces do not match");
+    if(pred.is_p_u_repr)
+        return Predicate(space, (!t_v_u || pred.p_u).universal_abstraction(space.cube_u), false);
+    else
+        return Predicate(space, (!t_u_v || pred.p_v).universal_abstraction(space.cube_v), true);
+}
+Predicate Transition::AF(const Predicate& pred) const
+{
+    if(space != pred.space) 
+        throw std::runtime_error("Transition and predicate state spaces do not match");
+    Predicate acc(space, false);
+    Predicate nxt(space, false);
+    while((nxt = pred || AX(acc)) != acc) acc = nxt;
+    return acc;
+}
+Predicate Transition::AG(const Predicate& pred) const
+{
+    if(space != pred.space) 
+        throw std::runtime_error("Transition and predicate state spaces do not match");
+    Predicate acc(space, true);
+    Predicate nxt(space, false);
+    while((nxt = pred && AX(acc)) != acc) acc = nxt;
+    return acc;
+}
+Predicate Transition::AU(const Predicate& predl, const Predicate& predr) const
+{
+    if(space != predl.space || space != predr.space) 
+        throw std::runtime_error("Transition and predicate state spaces do not match");
+    Predicate acc(space, true);
+    Predicate nxt(space, false);
+    while((nxt = predl || (predr && AX(acc))) != acc) acc = nxt;
+    return acc;
+}
+Predicate Transition::AR(const Predicate& predl, const Predicate& predr) const
+{
+    if(space != predl.space || space != predr.space) 
+        throw std::runtime_error("Transition and predicate state spaces do not match");
+    Predicate acc(space, true);
+    Predicate nxt(space, false);
+    while((nxt = predr && (predl || AX(acc))) != acc) acc = nxt;
+    return acc;
+}
+
+
 
 /**
- * Impl Pred
+ * Impl Predicate
  */ 
 
 // CTOR etc
@@ -175,21 +268,8 @@ Predicate& Predicate::operator^=(const Predicate& other) { return *this = *this 
 
 Predicate Predicate::operator!() { return Predicate(space, is_p_u_repr ? !p_u : !p_v, is_p_u_repr);}
 
-// EX and AX
-Predicate Predicate::EX(const Transition& trans) const
-{
-    if(is_p_u_repr)
-        return Predicate(space, (trans.t_v_u && p_u).existential_abstraction(space.cube_u), false);
-    else
-        return Predicate(space, (trans.t_u_v && p_v).existential_abstraction(space.cube_v), true);
-}
-Predicate Predicate::AX(const Transition& trans) const
-{
-    if(is_p_u_repr)
-        return Predicate(space, (trans.t_v_u && p_u).universal_abstraction(space.cube_u), false);
-    else
-        return Predicate(space, (trans.t_u_v && p_v).universal_abstraction(space.cube_v), true);
-}
+
+
 
 
 // Equality
@@ -217,3 +297,6 @@ BDD Predicate::get_bdd() const
 // Check if sat or valid
 bool Predicate::is_true()  const { return (is_p_u_repr ? p_u : p_v).is_one();  }
 bool Predicate::is_false() const { return (is_p_u_repr ? p_u : p_v).is_zero(); }
+
+
+

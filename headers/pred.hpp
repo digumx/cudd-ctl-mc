@@ -11,6 +11,9 @@
  * even numbers, and v to the second state encoded by idx*2 + 1 as odd numbers.
  */
 
+#ifndef PRED_H
+#define PRED_H
+
 #include "headers/bdd.hpp"
 
 
@@ -119,6 +122,21 @@ class Transition
         Transition& operator^=(const Transition& other);
         Transition  operator! ();
 
+        /**
+         * CTL quantifiers. Based on given transition, convert predicates to predicates representing
+         * quantified versions.
+         */
+        Predicate EX(const Predicate& pred) const;
+        Predicate EF(const Predicate& pred) const;
+        Predicate EG(const Predicate& pred) const;
+        Predicate EU(const Predicate& predl, const Predicate& predr) const;
+        Predicate ER(const Predicate& predl, const Predicate& predr) const;
+        Predicate AX(const Predicate& pred) const;
+        Predicate AF(const Predicate& pred) const;
+        Predicate AG(const Predicate& pred) const;
+        Predicate AU(const Predicate& predl, const Predicate& predr) const;
+        Predicate AR(const Predicate& predl, const Predicate& predr) const;
+
         
     private:
         Transition(const StateSpace& sp, const BDD& tuv, const BDD& tvu);
@@ -203,4 +221,8 @@ class Predicate
         BDD p_u;                    // Representation as fn of var
         BDD p_v;                    // Representation as fn of var2
         bool is_p_u_repr;           // Is the correct representation on var u
+
+    friend class Transition;
 };
+
+#endif

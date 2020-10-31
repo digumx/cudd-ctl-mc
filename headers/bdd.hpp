@@ -64,7 +64,7 @@ class BDD
         BDD& operator&=(const BDD& other);
         BDD& operator|=(const BDD& other);
         BDD& operator^=(const BDD& other);
-        BDD  operator! ();
+        BDD  operator! () const;
 
         /**
          * Check if two BDDs are equal
