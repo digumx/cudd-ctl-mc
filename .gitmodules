@@ -1,0 +1,3 @@
+[submodule "extlib/sexpresso"]
+	path = extlib/sexpresso
+	url = https://github.com/BitPuffin/sexpresso.git

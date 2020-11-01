@@ -35,6 +35,11 @@ class StateSpace
 {
     public:
         /**
+         * The number of bits in the state space.
+         */
+        const int state_bits;
+
+        /**
          * Create a new context with `state_bits` bits representing a state
          */
         StateSpace(int state_bits);
@@ -46,7 +51,6 @@ class StateSpace
         friend bool operator!=(const StateSpace& sl, const StateSpace& sr);
 
     private:
-        int state_bits;
         BDD var_eq_bdd;
         BDD cube_u;
         BDD cube_v;

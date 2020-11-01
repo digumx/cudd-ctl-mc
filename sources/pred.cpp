@@ -197,7 +197,7 @@ Predicate Transition::AR(const Predicate& predl, const Predicate& predr) const
 
 // CTOR etc
 Predicate::Predicate(const StateSpace& sp, const BDD& repr, bool is_repr_u) 
-    : space(sp), is_p_u_repr(is_repr_u), p_u(false), p_v(false)
+    : space(sp), p_u(false), p_v(false), is_p_u_repr(is_repr_u)
 {
    if(is_p_u_repr)     { p_u = repr;        p_v = BDD(false); }
    else                { p_u = BDD(false);  p_v = repr;       }
