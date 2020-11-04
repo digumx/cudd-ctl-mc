@@ -7,8 +7,6 @@
 
 #include <vector>
 #include <stdexcept>
-#include <string> // DEBUG
-#include <cstdlib> // DEBUG
 
 #include "headers/bdd.hpp"
 
@@ -123,23 +121,8 @@ Predicate Transition::EG(const Predicate& pred) const
     if(space != pred.space) 
         throw std::runtime_error("Transition and predicate state spaces do not match");
     Predicate acc(space, true);
-    Predicate nxt = pred && EX(acc);
-    int i = 0; // DEBUG
-    while(nxt != acc) { nxt.get_bdd().save_dot(std::string("out/dbg_nxt_") + std::to_string(i) 
-            + std::string(".dot"));      // DEBUG
-        acc = nxt; 
-        acc.get_bdd().save_dot(std::string("out/dbg_acc_") + std::to_string(i) 
-            + std::string(".dot"));      // DEBUG
-        EX(acc).get_bdd().save_dot(std::string("out/dbg_EXacc_") + std::to_string(i) 
-            + std::string(".dot"));      // DEBUG
-        pred.get_bdd().save_dot(std::string("out/dbg_pred_") + std::to_string(i) 
-            + std::string(".dot"));      // DEBUG
-        nxt = pred && EX(acc);
-        nxt.get_bdd().save_dot(std::string("out/dbg_nxt2_") + std::to_string(i) 
-            + std::string(".dot"));      // DEBUG
-        i++; // DEBUG
-
-    }
+    Predicate nxt(space, false);
+    while((nxt = pred && EX(acc)) != acc) acc = nxt; 
     return acc;
 }
 Predicate Transition::EU(const Predicate& predl, const Predicate& predr) const

@@ -16,73 +16,6 @@
 #include "headers/pred.hpp"
 
 
-////int main(int argc, char** argv)
-////{
-////    /*BDD dd1(false);
-////    BDD dd2(0);
-////    dd1 |= dd2;
-////    dd1.save_dot("./out/dbg.dot");*/
-////
-////    DdManager* man = Cudd_Init(0, 0, CUDD_UNIQUE_SLOTS, CUDD_CACHE_SLOTS, 0);
-////    DdNode* dd1 = Cudd_ReadLogicZero(man);
-////    Cudd_Ref(dd1);
-////    DdNode* dd2 = Cudd_bddIthVar(man, 0);
-////    Cudd_Ref(dd2);
-////    DdNode* dd3 = Cudd_bddOr(man, dd1, dd2);
-////    Cudd_Ref(dd3);
-////}
-//
-//
-///*
-// * For now, the main function simply computes EX, EXEX and AX for the transition function for a mod 2
-// * counter, and checks EXp = !p, EXEXp = p
-// */
-//int main(int argc, char** argv)
-//{
-//    // We define our state space to be over one bit
-//    StateSpace sp(1);
-//
-//    // We firstly define p, q as predicates over sp
-//    predicate p = !predicate(sp, 0);                                            // p = v0<=>0 = !v0
-//    predicate q = !p;                                                           // q = !p
-//
-//    // then we define the transition relation over sp
-//    transition trans = transition(sp, 0, false) ^ transition(sp, 0, true);      // t(u, v) := u0^v0 
-//
-//    // now, we get the predicates for exp, axp and exexp.
-//    predicate exp = trans.ex(p);
-//    predicate axp = trans.ax(p);
-//    predicate exexp = trans.ex(trans.ex(p));
-//    
-//    // print out all bdds generated into dot files
-//    p.get_bdd().save_dot("./out/p.dot");
-//    q.get_bdd().save_dot("./out/q.dot");
-//    exp.get_bdd().save_dot("./out/exp.dot");
-//    axp.get_bdd().save_dot("./out/axp.dot");
-//    exexp.get_bdd().save_dot("./out/exexp.dot");
-//
-//    // now we check if exp <=> q and exexp <=> p. as exp(v0) vs some other vi is just the same
-//    // function with different names for bound variables, we can just check exp(v0) <=> q(v0) and so
-//    // on
-//    std::cout << "exp <=> q "       << (exp == q   ? "holds" : "does not hold") << std::endl;
-//    std::cout << "ex(exp) <=> p "   << (exexp == p ? "holds" : "does not hold") << std::endl;
-//
-//    // check some very basic properties
-//    predicate efp = trans.ef(p);
-//    predicate egp = trans.eg(p);
-//    efp.get_bdd().save_dot("./out/efp.dot");
-//    egp.get_bdd().save_dot("./out/gfp.dot");
-//    (p || trans.ex(p)).get_bdd().save_dot("./out/dbg.dot");
-//    trans.ax(p || trans.ex(p)).get_bdd().save_dot("./out/dbg2.dot");
-//
-//    std::cout << "efp " << (trans.ef(p).is_false() ? "is unsat" : "is sat") << std::endl;
-//    std::cout << "egp " << (trans.eg(p).is_false() ? "is unsat" : "is sat") << std::endl;
-//    std::cout << "afp " << (trans.af(p).is_false() ? "is unsat" : "is sat") << std::endl;
-//    std::cout << "ag(!p => ex(p)) " << (trans.ag(p || trans.ex(p)).is_true() ? "is valid" : "is invalid") << std::endl;
-//}
-
-
-
 
 /**
  * print a short message explaining the command line usage
@@ -436,16 +369,6 @@ Predicate ctl_to_pred(const StateSpace& sp, const Transition& trans, const sexpr
 }
 
 
-// DEBUG
-//int main(int argc, char** argv)
-//{
-//    StateSpace sp(1);
-//    Transition trans = Transition(sp, 0, false) ^ Transition(sp, 0, true);
-//    Predicate p1(sp, 0);
-//    Predicate p2 = trans.EX(p1);
-//    (p1 && p2).get_bdd().save_dot("out/bdd1.dot");
-//}
-
 /**
  * Main method
  */
@@ -472,7 +395,6 @@ int main(int argc, char** argv)
             std::string line; 
             while(std::getline(spec_file, line)) spec_str += line.substr(0, line.find(';'));
         }
-        std::cout << "Specification dump \n" << spec_str << std::endl; // DEBUG
 
 
         // Parse file and build StateSpace, init Predicate and Transition
@@ -487,10 +409,6 @@ int main(int argc, char** argv)
                           || spec.childCount() != 5) 
         { 
             std::cout << "Top level must be of form (system n_bits init trans props)" << std::endl;
-            // DEBUG
-            std::cout << (spec.isSexp() ? "Sexp" : "Not Sexp ") << std::endl;
-            std::cout << spec.value.sexp[0].toString() << std::endl;
-            std::cout << spec.value.sexp[0].childCount() << std::endl;
             return EXIT_FAILURE;
         }
         if(!spec.value.sexp[1].isString())
@@ -515,8 +433,6 @@ int main(int argc, char** argv)
         StateSpace space(bit_vector_size);
         Predicate init = parse_predicate(space, spec.value.sexp[2]);
         Transition trans = parse_transition(space, spec.value.sexp[3]);
-        trans.t_u_v.save_dot("out/t_u_v.dot");  //DEBGUG
-        trans.t_v_u.save_dot("out/t_v_u.dot");  //DEBGUG
 
 
 
@@ -535,15 +451,9 @@ int main(int argc, char** argv)
         
         // Do the basic model checking
         for(size_t i = 1; i < spec.value.sexp[4].childCount(); ++i)
-        {
-            // DEBUG
-            std::cout << "Property spec: " << spec.value.sexp[4].value.sexp[i].toString() <<
-                std::endl;
-            ctl_to_pred(space, trans, spec.value.sexp[4].value.sexp[i]).get_bdd().save_dot("out/dbg.dot");
             std::cout << "Property " << i << " is " <<
                 ((ctl_to_pred(space, trans, spec.value.sexp[4].value.sexp[i]) && init).is_false() ?
                     "unsat" : "sat") << std::endl;
-        }
 
         
         
