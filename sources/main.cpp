@@ -132,8 +132,8 @@ Predicate parse_predicate(const StateSpace& sp, const sexpresso::Sexp& expr)
             std::cout << "Or takes atleast two arguments" << std::endl;
             throw std::runtime_error(expr.toString());
         }
-        Predicate ret(sp, false);
-        for(size_t i = 1; i < expr.childCount(); i++) ret |= parse_predicate(sp, expr.value.sexp[i]);
+        Predicate ret = parse_predicate(sp, expr.value.sexp[1]);
+        for(size_t i = 2; i < expr.childCount(); i++) ret |= parse_predicate(sp, expr.value.sexp[i]);
         return ret;
     }
     else if(fn == std::string("and"))
@@ -143,8 +143,8 @@ Predicate parse_predicate(const StateSpace& sp, const sexpresso::Sexp& expr)
             std::cout << "And takes atleast two arguments" << std::endl;
             throw std::runtime_error(expr.toString());
         }
-        Predicate ret(sp, true);
-        for(size_t i = 1; i < expr.childCount(); i++) ret &= parse_predicate(sp, expr.value.sexp[i]);
+        Predicate ret = parse_predicate(sp, expr.value.sexp[1]);
+        for(size_t i = 2; i < expr.childCount(); i++) ret &= parse_predicate(sp, expr.value.sexp[i]);
         return ret;
     }
     else if(fn == std::string("xor"))
@@ -154,8 +154,8 @@ Predicate parse_predicate(const StateSpace& sp, const sexpresso::Sexp& expr)
             std::cout << "Xor takes atleast two arguments" << std::endl;
             throw std::runtime_error(expr.toString());
         }
-        Predicate ret(sp, true);
-        for(size_t i = 1; i < expr.childCount(); i++) ret ^= parse_predicate(sp, expr.value.sexp[i]);
+        Predicate ret = parse_predicate(sp, expr.value.sexp[1]);
+        for(size_t i = 2; i < expr.childCount(); i++) ret ^= parse_predicate(sp, expr.value.sexp[i]);
         return ret;
     }
     else if(fn == std::string("not"))
@@ -220,8 +220,8 @@ Transition parse_transition(const StateSpace& sp, const sexpresso::Sexp& expr)
             std::cout << "Or takes atleast two arguments" << std::endl;
             throw std::runtime_error(expr.toString());
         }
-        Transition ret(sp, false);
-        for(size_t i = 1; i < expr.childCount(); i++) ret |= parse_transition(sp, expr.value.sexp[i]);
+        Transition ret = parse_transition(sp, expr.value.sexp[1]);
+        for(size_t i = 2; i < expr.childCount(); i++) ret |= parse_transition(sp, expr.value.sexp[i]);
         return ret;
     }
     else if(fn == std::string("and"))
@@ -231,8 +231,8 @@ Transition parse_transition(const StateSpace& sp, const sexpresso::Sexp& expr)
             std::cout << "And takes atleast two arguments" << std::endl;
             throw std::runtime_error(expr.toString());
         }
-        Transition ret(sp, true);
-        for(size_t i = 1; i < expr.childCount(); i++) ret &= parse_transition(sp, expr.value.sexp[i]);
+        Transition ret = parse_transition(sp, expr.value.sexp[1]);
+        for(size_t i = 2; i < expr.childCount(); i++) ret &= parse_transition(sp, expr.value.sexp[i]);
         return ret;
     }
     else if(fn == std::string("xor"))
@@ -242,8 +242,8 @@ Transition parse_transition(const StateSpace& sp, const sexpresso::Sexp& expr)
             std::cout << "Xor takes atleast two arguments" << std::endl;
             throw std::runtime_error(expr.toString());
         }
-        Transition ret(sp, true);
-        for(size_t i = 1; i < expr.childCount(); i++) ret ^= parse_transition(sp, expr.value.sexp[i]);
+        Transition ret = parse_transition(sp, expr.value.sexp[1]);
+        for(size_t i = 2; i < expr.childCount(); i++) ret ^= parse_transition(sp, expr.value.sexp[i]);
         return ret;
     }
     else if(fn == std::string("not"))
@@ -314,11 +314,20 @@ bool check_property(const StateSpace& sp, const sexpresso::Sexp& expr)
         if(expr.childCount() < 3)
         {
             std::cout << fn << " takes atleast two arguments" << std::endl;
-            throw std::runtime_error(expr.toString());
+            return false;
         }
         bool ret = true;
         for(size_t i = 1; i < expr.childCount(); i++) ret &= check_property(sp, expr.value.sexp[i]);
         return ret;
+    }
+    else if(fn == std::string("not"))
+    {
+        if(expr.childCount() != 2)
+        {
+            std::cout << fn << " takes exacly one argument" << std::endl;
+            return false;
+        }
+        return check_property(sp, expr.value.sexp[1]);
     }
     else if(fn == std::string("EX")     || 
             fn == std::string("EF")     ||
@@ -386,29 +395,29 @@ bool check_property(const StateSpace& sp, const sexpresso::Sexp& expr)
 /**
  * Converts the CTL expression to a Predicate. Assumes expression to be syntaxially valid
  */
-Predicate ctl_to_pred(cosnt StateSpace& sp, const Transition& trans, const sexpresso::Sexp& expr)
+Predicate ctl_to_pred(const StateSpace& sp, const Transition& trans, const sexpresso::Sexp& expr)
 {
     const std::string& fn = expr.value.sexp[0].value.str;
-    if      (fn == "var")   return Predicate(sp, std::stoi(expr.value.sexp[1].value.str);
+    if      (fn == "var")   return Predicate(sp, std::stoi(expr.value.sexp[1].value.str));
     else if (fn == "and")
     {
-        Pred ret = ctl_to_pred(sp, expr.value.sexp[1];
-        for(int i = 2; i < expr.childCount(); i++) ret &= ctl_to_pred(sp, trans, expr.value.sexp[i]);
+        Predicate ret = ctl_to_pred(sp, trans, expr.value.sexp[1]);
+        for(size_t i = 2; i < expr.childCount(); i++) ret &= ctl_to_pred(sp, trans, expr.value.sexp[i]);
         return ret;
     }
     else if (fn == "or")
     {
-        Pred ret = ctl_to_pred(sp, expr.value.sexp[1];
-        for(int i = 1; i < expr.childCount(); i++) ret |= ctl_to_pred(sp, trans, expr.value.sexp[i]);
+        Predicate ret = ctl_to_pred(sp, trans, expr.value.sexp[1]);
+        for(size_t i = 1; i < expr.childCount(); i++) ret |= ctl_to_pred(sp, trans, expr.value.sexp[i]);
         return ret;
     }
     else if (fn == "xor")
     {
-        Pred ret = ctl_to_pred(sp, expr.value.sexp[1];
-        for(int i = 1; i < expr.childCount(); i++) ret ^= ctl_to_pred(sp, trans, expr.value.sexp[i]);
+        Predicate ret = ctl_to_pred(sp, trans, expr.value.sexp[1]);
+        for(size_t i = 1; i < expr.childCount(); i++) ret ^= ctl_to_pred(sp, trans, expr.value.sexp[i]);
         return ret;
     }
-    else if (fn == "not")   return !ctl_to_pred(trans, expr.value.sexp[1]);
+    else if (fn == "not")   return !ctl_to_pred(sp, trans, expr.value.sexp[1]);
     else if (fn == "EX")    return trans.EX(ctl_to_pred(sp, trans, expr.value.sexp[1]));
     else if (fn == "EF")    return trans.EF(ctl_to_pred(sp, trans, expr.value.sexp[1]));
     else if (fn == "EG")    return trans.EG(ctl_to_pred(sp, trans, expr.value.sexp[1]));
@@ -423,11 +432,19 @@ Predicate ctl_to_pred(cosnt StateSpace& sp, const Transition& trans, const sexpr
                                             ctl_to_pred(sp, trans, expr.value.sexp[2]));
     else if (fn == "AR")    return trans.AR(ctl_to_pred(sp, trans, expr.value.sexp[1]),
                                             ctl_to_pred(sp, trans, expr.value.sexp[2]));
+    else throw std::runtime_error("Unknown function in property specification");
 }
 
 
-
-
+// DEBUG
+//int main(int argc, char** argv)
+//{
+//    StateSpace sp(1);
+//    Transition trans = Transition(sp, 0, false) ^ Transition(sp, 0, true);
+//    Predicate p1(sp, 0);
+//    Predicate p2 = trans.EX(p1);
+//    (p1 && p2).get_bdd().save_dot("out/bdd1.dot");
+//}
 
 /**
  * Main method
@@ -498,6 +515,9 @@ int main(int argc, char** argv)
         StateSpace space(bit_vector_size);
         Predicate init = parse_predicate(space, spec.value.sexp[2]);
         Transition trans = parse_transition(space, spec.value.sexp[3]);
+        trans.t_u_v.save_dot("out/t_u_v.dot");  //DEBGUG
+        trans.t_v_u.save_dot("out/t_v_u.dot");  //DEBGUG
+
 
 
         // Check syntax of the properties
@@ -515,9 +535,15 @@ int main(int argc, char** argv)
         
         // Do the basic model checking
         for(size_t i = 1; i < spec.value.sexp[4].childCount(); ++i)
+        {
+            // DEBUG
+            std::cout << "Property spec: " << spec.value.sexp[4].value.sexp[i].toString() <<
+                std::endl;
+            ctl_to_pred(space, trans, spec.value.sexp[4].value.sexp[i]).get_bdd().save_dot("out/dbg.dot");
             std::cout << "Property " << i << " is " <<
-                ((ctl_to_pred(space, trans, spec.value.sexp[4].value.sexp[i]) & init).is_false() ?
-                    "sat" : "unsat") << std::endl;
+                ((ctl_to_pred(space, trans, spec.value.sexp[4].value.sexp[i]) && init).is_false() ?
+                    "unsat" : "sat") << std::endl;
+        }
 
         
         

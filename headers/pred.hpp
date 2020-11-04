@@ -142,7 +142,7 @@ class Transition
         Predicate AR(const Predicate& predl, const Predicate& predr) const;
 
         
-    private:
+    //private: //DEBUG
         Transition(const StateSpace& sp, const BDD& tuv, const BDD& tvu);
         
         BDD t_u_v;          // Repr for var -> var2
