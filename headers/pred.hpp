@@ -118,6 +118,7 @@ class State
         BDD bdd_v;
 
     friend class Transition;
+    friend class Predicate;
 };
 
 
@@ -285,6 +286,11 @@ class Predicate
          * of bconst
          */
         Predicate(const StateSpace& sp, bool bconst);
+
+        /**
+         * Make a new predicate that is ony true at the passed state
+         */
+        Predicate(const State& st);
 
         /**
          * Copy and assignment

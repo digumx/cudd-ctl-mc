@@ -535,8 +535,8 @@ int main(int argc, char** argv)
             // Do the model checking
             for(size_t i = 1; i < spec.value.sexp[4].childCount(); ++i)
                 std::cout << "Property " << i << " is " <<
-                    ((ctl_to_pred_fair(space, trans, spec.value.sexp[4].value.sexp[i]) && init).is_false() ?
-                        "unsat" : "sat") << std::endl;
+                    ((ctl_to_pred_fair(space, trans, spec.value.sexp[4].value.sexp[i]) || !init).is_true() ?
+                        "sat" : "unsat") << std::endl;
 
 
             return EXIT_SUCCESS;
@@ -550,7 +550,7 @@ int main(int argc, char** argv)
             if(prop.isString())
             {
                 std::cout << "Property " << i << " is " <<
-                    ((ctl_to_pred(space, trans, prop) && init).is_false() ? "unsat" : "sat") << 
+                    ((ctl_to_pred(space, trans, prop) || !init).is_true() ? "sat" : "unsat") << 
                     std::endl;
                 std::cout << "Could not generate witness or counterexample. " << std::endl;
 
@@ -563,7 +563,7 @@ int main(int argc, char** argv)
                 const sexpresso::Sexp& subprop = prop.value.sexp[1];
                 Predicate subpred = ctl_to_pred(space, trans, subprop);
                 Predicate pred = trans.EF(subpred);
-                if(!((pred && init).is_false()))
+                if((pred || !init).is_true())
                 {
                     std::cout << "Property " << i << " is sat." << std::endl;
                     std::cout << "Witness: " << std::endl;
@@ -580,7 +580,7 @@ int main(int argc, char** argv)
                 const sexpresso::Sexp& subprop = prop.value.sexp[1];
                 Predicate subpred = ctl_to_pred(space, trans, subprop);
                 Predicate pred = trans.EG(subpred);
-                if(!((pred && init).is_false()))
+                if((pred || !init).is_true())
                 {
                     std::cout << "Property " << i << " is sat." << std::endl;
                     std::cout << "Witness: " << std::endl;
@@ -599,7 +599,7 @@ int main(int argc, char** argv)
                 Predicate subpredl = ctl_to_pred(space, trans, subpropl);
                 Predicate subpredr = ctl_to_pred(space, trans, subpropr);
                 Predicate pred = trans.EU(subpredl, subpredr);
-                if(!((pred && init).is_false()))
+                if((pred || !init).is_true())
                 {
                     std::cout << "Property " << i << " is sat." << std::endl;
                     std::cout << "Witness: " << std::endl;
@@ -618,7 +618,7 @@ int main(int argc, char** argv)
                 Predicate subpredl = ctl_to_pred(space, trans, subpropl);
                 Predicate subpredr = ctl_to_pred(space, trans, subpropr);
                 Predicate pred = trans.ER(subpredl, subpredr);
-                if(!((pred && init).is_false()))
+                if((pred || !init).is_true())
                 {
                     std::cout << "Property " << i << " is sat." << std::endl;
                     std::cout << "Witness: " << std::endl;
@@ -635,7 +635,7 @@ int main(int argc, char** argv)
                 const sexpresso::Sexp& subprop = prop.value.sexp[1];
                 Predicate subpred = ctl_to_pred(space, trans, subprop);
                 Predicate pred = trans.AF(subpred);
-                if((pred && init).is_false())
+                if(!((pred || !init).is_true()))
                 {
                     std::cout << "Property " << i << " is unsat." << std::endl;
                     std::cout << "Counterexample: " << std::endl;
@@ -652,7 +652,7 @@ int main(int argc, char** argv)
                 const sexpresso::Sexp& subprop = prop.value.sexp[1];
                 Predicate subpred = ctl_to_pred(space, trans, subprop);
                 Predicate pred = trans.AG(subpred);
-                if((pred && init).is_false())
+                if(!((pred || !init).is_true()))
                 {
                     std::cout << "Property " << i << " is unsat." << std::endl;
                     std::cout << "Counterexample: " << std::endl;
@@ -671,7 +671,7 @@ int main(int argc, char** argv)
                 Predicate subpredl = ctl_to_pred(space, trans, subpropl);
                 Predicate subpredr = ctl_to_pred(space, trans, subpropr);
                 Predicate pred = trans.AU(subpredl, subpredr);
-                if((pred && init).is_false())
+                if(!((pred || !init).is_true()))
                 {
                     std::cout << "Property " << i << " is unsat." << std::endl;
                     std::cout << "Counterexample: " << std::endl;
@@ -690,7 +690,7 @@ int main(int argc, char** argv)
                 Predicate subpredl = ctl_to_pred(space, trans, subpropl);
                 Predicate subpredr = ctl_to_pred(space, trans, subpropr);
                 Predicate pred = trans.AR(subpredl, subpredr);
-                if((pred && init).is_false())
+                if(!((pred || !init).is_true()))
                 {
                     std::cout << "Property " << i << " is unsat." << std::endl;
                     std::cout << "Counterexample: " << std::endl;

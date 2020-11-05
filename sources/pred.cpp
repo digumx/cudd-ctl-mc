@@ -86,7 +86,7 @@ bool State::operator == (const State& other)
 std::string State::to_string(size_t n_space) const
 {
     std::string str = "";
-    for(bool v : assign) str += std::string(n_space, ' ') + (v ? "1" : "0");
+    for(bool v : assign) str += (v ? "1" : "0") + std::string(n_space, ' ');
     return str;
 }
 
@@ -386,12 +386,13 @@ Path Transition::gen_witness_EG(const Predicate& init, const Predicate& EGf,
                                 const Predicate& f) const
 {
     Path ret; ret.is_finite = false;
-    State st(init && EGf);
+    State st(init);
     std::vector<State>::iterator loc;
+    // Keep generating a long path with states in EGf until it lassos
     while((loc = std::find(ret.states.begin(), ret.states.end(), st)) == ret.states.end())
     {
         ret.states.push_back(st);
-        st = State(next(st) && EGf);
+        st = State(next(st) && EGf);        // This will always be nonempty by definition of EGf
     }
     ret.lasso_point = loc - ret.states.begin();
     return ret;
@@ -399,15 +400,18 @@ Path Transition::gen_witness_EG(const Predicate& init, const Predicate& EGf,
 Path Transition::gen_witness_EU(const Predicate& init, const Predicate& EfUg, const Predicate& f, 
                                 const Predicate& g) const
 {
-    Predicate nxt = init && EfUg;
+    Predicate nxt = init;
     Predicate end = nxt && g;
     Path ret; ret.is_finite = true;
-    while(end.is_false())
+    Predicate allowed(init.space, true);       // Tracks which states have not been visited yet
+    // This loop produces paths with non-repeating vertices from EfUg, as g is in EfUg, such a path
+    // will hit g eventually
+    while((end = (nxt && g)).is_false())
     {
         State st(nxt);
-        nxt = next(st) && EfUg;
+        nxt = next(st) && EfUg && allowed;
+        allowed &= !Predicate(st);
         ret.states.push_back(st);
-        end = nxt && g;
     }
     ret.states.push_back(State(end));
     return ret;
@@ -468,6 +472,8 @@ Predicate& Predicate::operator=(const Predicate& other)
     else            p_v = other.p_v;
     return *this;
 }
+
+Predicate::Predicate(const State& st) : Predicate(st.space, st.bdd_u, true) {}
 
 
 // Operators
