@@ -16,6 +16,8 @@
 
 #include "headers/bdd.hpp"
 
+#include <vector>
+
 
 
 /** 
@@ -124,7 +126,7 @@ class Transition
         Transition& operator&=(const Transition& other);
         Transition& operator|=(const Transition& other);
         Transition& operator^=(const Transition& other);
-        Transition  operator! ();
+        Transition  operator! () const;
 
         /**
          * CTL quantifiers. Based on given transition, convert predicates to predicates representing
@@ -141,12 +143,33 @@ class Transition
         Predicate AU(const Predicate& predl, const Predicate& predr) const;
         Predicate AR(const Predicate& predl, const Predicate& predr) const;
 
+        /** 
+         * Add fairness constraints
+         */
+        void add_fairness(const Predicate& pred);
+
+        /**
+         * Fair versions of above CTL operators
+         */
+        Predicate EX_fair(const Predicate& pred) const;
+        Predicate EF_fair(const Predicate& pred) const;
+        Predicate EG_fair(const Predicate& pred) const;
+        Predicate EU_fair(const Predicate& predl, const Predicate& predr) const; 
+        Predicate ER_fair(const Predicate& predl, const Predicate& predr) const;
+        Predicate AX_fair(const Predicate& pred) const;
+        Predicate AF_fair(const Predicate& pred) const;
+        Predicate AG_fair(const Predicate& pred) const;
+        Predicate AU_fair(const Predicate& predl, const Predicate& predr) const;
+        Predicate AR_fair(const Predicate& predl, const Predicate& predr) const;
+
         
     private:
         Transition(const StateSpace& sp, const BDD& tuv, const BDD& tvu);
         
         BDD t_u_v;          // Repr for var -> var2
         BDD t_v_u;          // Repr for var2 -> var
+
+        std::vector<Predicate> fairness;
 
     friend class Predicate;
 };
@@ -190,7 +213,7 @@ class Predicate
         Predicate& operator&=(const Predicate& other);
         Predicate& operator|=(const Predicate& other);
         Predicate& operator^=(const Predicate& other);
-        Predicate  operator! ();
+        Predicate  operator! () const;
 
         /**
          * EX and AX can be viewed as operators on Predicate given a Transition over the same state

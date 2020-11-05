@@ -368,6 +368,49 @@ Predicate ctl_to_pred(const StateSpace& sp, const Transition& trans, const sexpr
     else throw std::runtime_error("Unknown function in property specification");
 }
 
+/**
+ * Version of previous function modified to handle fairness constraints
+ */ 
+Predicate ctl_to_pred_fair(const StateSpace& sp, const Transition& trans, const sexpresso::Sexp& expr)
+{
+    const std::string& fn = expr.value.sexp[0].value.str;
+    if      (fn == "var")   return Predicate(sp, std::stoi(expr.value.sexp[1].value.str)) &&
+                                    trans.EG_fair(Predicate(sp, true));
+    else if (fn == "and")
+    {
+        Predicate ret = ctl_to_pred_fair(sp, trans, expr.value.sexp[1]);
+        for(size_t i = 2; i < expr.childCount(); i++) ret &= ctl_to_pred_fair(sp, trans, expr.value.sexp[i]);
+        return ret;
+    }
+    else if (fn == "or")
+    {
+        Predicate ret = ctl_to_pred_fair(sp, trans, expr.value.sexp[1]);
+        for(size_t i = 1; i < expr.childCount(); i++) ret |= ctl_to_pred_fair(sp, trans, expr.value.sexp[i]);
+        return ret;
+    }
+    else if (fn == "xor")
+    {
+        Predicate ret = ctl_to_pred_fair(sp, trans, expr.value.sexp[1]);
+        for(size_t i = 1; i < expr.childCount(); i++) ret ^= ctl_to_pred_fair(sp, trans, expr.value.sexp[i]);
+        return ret;
+    }
+    else if (fn == "not")   return !ctl_to_pred_fair(sp, trans, expr.value.sexp[1]);
+    else if (fn == "EX")    return trans.EX_fair(ctl_to_pred_fair(sp, trans, expr.value.sexp[1]));
+    else if (fn == "EF")    return trans.EF_fair(ctl_to_pred_fair(sp, trans, expr.value.sexp[1]));
+    else if (fn == "EG")    return trans.EG_fair(ctl_to_pred_fair(sp, trans, expr.value.sexp[1]));
+    else if (fn == "EU")    return trans.EU_fair(ctl_to_pred_fair(sp, trans, expr.value.sexp[1]),
+                                                 ctl_to_pred_fair(sp, trans, expr.value.sexp[2]));
+    else if (fn == "ER")    return trans.ER_fair(ctl_to_pred_fair(sp, trans, expr.value.sexp[1]),
+                                                 ctl_to_pred_fair(sp, trans, expr.value.sexp[2]));
+    else if (fn == "AX")    return trans.AX_fair(ctl_to_pred_fair(sp, trans, expr.value.sexp[1]));
+    else if (fn == "AF")    return trans.AF_fair(ctl_to_pred_fair(sp, trans, expr.value.sexp[1]));
+    else if (fn == "AG")    return trans.AG_fair(ctl_to_pred_fair(sp, trans, expr.value.sexp[1]));
+    else if (fn == "AU")    return trans.AU_fair(ctl_to_pred_fair(sp, trans, expr.value.sexp[1]),
+                                                 ctl_to_pred_fair(sp, trans, expr.value.sexp[2]));
+    else if (fn == "AR")    return trans.AR_fair(ctl_to_pred_fair(sp, trans, expr.value.sexp[1]),
+                                                 ctl_to_pred_fair(sp, trans, expr.value.sexp[2]));
+    else throw std::runtime_error("Unknown function in property specification");
+}
 
 /**
  * Main method
@@ -406,9 +449,9 @@ int main(int argc, char** argv)
         }
         spec = spec.value.sexp[0];
         if(!spec.isSexp() || spec.value.sexp[0].value.str != std::string("system")
-                          || spec.childCount() != 5) 
+                          || (spec.childCount() != 5 && spec.childCount() != 6)) 
         { 
-            std::cout << "Top level must be of form (system n_bits init trans props)" << std::endl;
+            std::cout << "Top level must be of form (system n_bits init trans props [fairness])" << std::endl;
             return EXIT_FAILURE;
         }
         if(!spec.value.sexp[1].isString())
@@ -447,6 +490,32 @@ int main(int argc, char** argv)
         for(size_t i = 1; i < spec.value.sexp[4].childCount(); ++i)
             if(!check_property(space, spec.value.sexp[4].value.sexp[i])) return EXIT_FAILURE;
         std::cout << "Specification parsed, syntax is correct" << std::endl;
+
+
+        // Check if fairness conditions are provided
+        if(spec.childCount() == 6)
+        {
+            std::cout << "Reading fairness conditions" << std::endl;
+            // Parse the fairness conditions
+            if(spec.value.sexp[5].isString())
+            {
+                std::cout << "Fifth argument should be a list of fairness conditions (f1 f2..)" <<
+                    std::endl;
+                return EXIT_FAILURE;
+            }
+            for(size_t i = 0; i < spec.value.sexp[5].childCount(); ++i)
+               trans.add_fairness(parse_predicate(space, spec.value.sexp[5].value.sexp[i]));
+
+
+            // Do the model checking
+            for(size_t i = 1; i < spec.value.sexp[4].childCount(); ++i)
+                std::cout << "Property " << i << " is " <<
+                    ((ctl_to_pred_fair(space, trans, spec.value.sexp[4].value.sexp[i]) && init).is_false() ?
+                        "unsat" : "sat") << std::endl;
+
+
+            return EXIT_SUCCESS;
+        }
 
         
         // Do the basic model checking

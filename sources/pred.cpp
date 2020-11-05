@@ -7,6 +7,8 @@
 
 #include <vector>
 #include <stdexcept>
+#include <string>       //DEBUG
+#include <iostream>     //DEBUG
 
 #include "headers/bdd.hpp"
 
@@ -94,7 +96,7 @@ Transition& Transition::operator&=(const Transition& other) { return *this = *th
 Transition& Transition::operator|=(const Transition& other) { return *this = *this || other; }
 Transition& Transition::operator^=(const Transition& other) { return *this = *this ^  other; }
 
-Transition  Transition::operator! () { return Transition(space, !t_u_v, !t_v_u); }
+Transition  Transition::operator! () const { return Transition(space, !t_u_v, !t_v_u); }
 
 
 // CTL operators
@@ -129,8 +131,8 @@ Predicate Transition::EU(const Predicate& predl, const Predicate& predr) const
 {
     if(space != predl.space || space != predr.space) 
         throw std::runtime_error("Transition and predicate state spaces do not match");
-    Predicate acc(space, true);
-    Predicate nxt(space, false);
+    Predicate acc(space, false);
+    Predicate nxt(space, true);
     while((nxt = predr || (predl && EX(acc))) != acc) acc = nxt;
     return acc;
 }
@@ -174,8 +176,8 @@ Predicate Transition::AU(const Predicate& predl, const Predicate& predr) const
 {
     if(space != predl.space || space != predr.space) 
         throw std::runtime_error("Transition and predicate state spaces do not match");
-    Predicate acc(space, true);
-    Predicate nxt(space, false);
+    Predicate acc(space, false);
+    Predicate nxt(space, true);
     while((nxt = predr || (predl && AX(acc))) != acc) acc = nxt;
     return acc;
 }
@@ -188,6 +190,122 @@ Predicate Transition::AR(const Predicate& predl, const Predicate& predr) const
     while((nxt = predr && (predl || AX(acc))) != acc) acc = nxt;
     return acc;
 }
+
+
+
+// Add fairness constraints
+void Transition::add_fairness(const Predicate& pred) { fairness.push_back(pred); }
+
+// Fair versions of the operators above
+Predicate Transition::EX_fair(const Predicate& pred) const
+{
+    if(fairness.empty())
+        throw std::runtime_error("Transition has no fairness conditions for fair quantifier");
+    if(space != pred.space) 
+        throw std::runtime_error("Transition and predicate state spaces do not match");
+    return EX(EG_fair(Predicate(space, true)) && pred); 
+}
+Predicate Transition::EF_fair(const Predicate& pred) const
+{   
+    if(fairness.empty())
+        throw std::runtime_error("transition has no fairness conditions for fair quantifier");
+    if(space != pred.space) 
+        throw std::runtime_error("Transition and predicate state spaces do not match");
+    return EF(EG_fair(Predicate(space, true)) && pred); 
+}
+Predicate Transition::EG_fair(const Predicate& pred) const
+{
+    if(fairness.empty())
+        throw std::runtime_error("Transition has no fairness conditions for fair quantifier");
+    if(space != pred.space) 
+        throw std::runtime_error("Transition and predicate state spaces do not match");
+    Predicate acc(space, false);
+    Predicate nxt(space, true);
+    int c = 0; //DEBUG
+    while(nxt != acc) 
+    {
+        acc = nxt;
+        nxt = pred;
+        for(std::vector<Predicate>::const_iterator i = fairness.begin(); i != fairness.end(); ++i)
+        {
+            nxt &= EX(EU(pred, *i && acc));
+            // DEBUG
+            //(*i).get_bdd().save_dot("out/fairness.dot");
+            //(*i && acc).get_bdd().save_dot("out/fairness_and_acc_" + std::to_string(c) + ".dot");
+            //EU(pred, *i && acc).get_bdd().save_dot("out/eu_i_and_acc_" + std::to_string(c) + ".dot");
+            //EX(EU(pred, *i && acc)).get_bdd().save_dot("out/fairness_contrib_" + std::to_string(c) +
+            //        ".dot");
+        }   
+        // DEBUG
+        acc.get_bdd().save_dot("out/dbg_acc_" + std::to_string(c) + ".dot");
+        nxt.get_bdd().save_dot("out/dbg_nxt_" + std::to_string(c) + ".dot");
+        c++;
+    }
+    //std::cout << "Number of EG_fair iterations " << c << std::endl; //DEBUG
+    return acc;
+}
+Predicate Transition::EU_fair(const Predicate& predl, const Predicate& predr) const
+{   
+    if(fairness.empty())
+        throw std::runtime_error("Transition has no fairness conditions for fair quantifier");
+    if(space != predl.space || space != predr.space) 
+        throw std::runtime_error("Transition and predicate state spaces do not match");
+    return EU(predl, EG_fair(Predicate(space, true)) && predr); 
+}
+Predicate Transition::ER_fair(const Predicate& predl, const Predicate& predr) const
+{   
+    if(fairness.empty())
+        throw std::runtime_error("Transition has no fairness conditions for fair quantifier");
+    if(space != predl.space || space != predr.space) 
+        throw std::runtime_error("Transition and predicate state spaces do not match");
+    return ER(EG_fair(Predicate(space, true)) && predl, predr); 
+}
+Predicate Transition::AX_fair(const Predicate& pred) const
+{   
+    if(fairness.empty())
+        throw std::runtime_error("transition has no fairness conditions for fair quantifier");
+    if(space != pred.space) 
+        throw std::runtime_error("Transition and predicate state spaces do not match");
+    return !EX_fair(!pred); 
+}
+Predicate Transition::AF_fair(const Predicate& pred) const
+{   
+    if(fairness.empty())
+        throw std::runtime_error("transition has no fairness conditions for fair quantifier");
+    if(space != pred.space) 
+        throw std::runtime_error("Transition and predicate state spaces do not match");
+    return !EG_fair(!pred); 
+}
+Predicate Transition::AG_fair(const Predicate& pred) const
+{
+    if(fairness.empty())
+        throw std::runtime_error("transition has no fairness conditions for fair quantifier");
+    if(space != pred.space) 
+        throw std::runtime_error("Transition and predicate state spaces do not match");
+    return !EF_fair(!pred);
+}
+Predicate Transition::AU_fair(const Predicate& predl, const Predicate& predr) const
+{   
+    if(fairness.empty())
+        throw std::runtime_error("Transition has no fairness conditions for fair quantifier");
+    if(space != predl.space || space != predr.space) 
+        throw std::runtime_error("Transition and predicate state spaces do not match");
+    return !ER_fair(!predl, !predr); 
+}
+Predicate Transition::AR_fair(const Predicate& predl, const Predicate& predr) const
+{   
+    if(fairness.empty())
+        throw std::runtime_error("Transition has no fairness conditions for fair quantifier");
+    if(space != predl.space || space != predr.space) 
+        throw std::runtime_error("Transition and predicate state spaces do not match");
+    return !EU(!predl, !predr); 
+}
+
+
+
+
+
+
 
 
 
@@ -266,10 +384,7 @@ Predicate& Predicate::operator&=(const Predicate& other) { return *this = *this 
 Predicate& Predicate::operator|=(const Predicate& other) { return *this = *this || other; } 
 Predicate& Predicate::operator^=(const Predicate& other) { return *this = *this ^ other;  }
 
-Predicate Predicate::operator!() { return Predicate(space, is_p_u_repr ? !p_u : !p_v, is_p_u_repr);}
-
-
-
+Predicate Predicate::operator!() const { return Predicate(space, is_p_u_repr ? !p_u : !p_v, is_p_u_repr);}
 
 
 // Equality
