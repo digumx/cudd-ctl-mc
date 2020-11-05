@@ -16,6 +16,73 @@
 #include "headers/pred.hpp"
 
 
+////int main(int argc, char** argv)
+////{
+////    /*BDD dd1(false);
+////    BDD dd2(0);
+////    dd1 |= dd2;
+////    dd1.save_dot("./out/dbg.dot");*/
+////
+////    DdManager* man = Cudd_Init(0, 0, CUDD_UNIQUE_SLOTS, CUDD_CACHE_SLOTS, 0);
+////    DdNode* dd1 = Cudd_ReadLogicZero(man);
+////    Cudd_Ref(dd1);
+////    DdNode* dd2 = Cudd_bddIthVar(man, 0);
+////    Cudd_Ref(dd2);
+////    DdNode* dd3 = Cudd_bddOr(man, dd1, dd2);
+////    Cudd_Ref(dd3);
+////}
+//
+//
+///*
+// * For now, the main function simply computes EX, EXEX and AX for the transition function for a mod 2
+// * counter, and checks EXp = !p, EXEXp = p
+// */
+//int main(int argc, char** argv)
+//{
+//    // We define our state space to be over one bit
+//    StateSpace sp(1);
+//
+//    // We firstly define p, q as predicates over sp
+//    predicate p = !predicate(sp, 0);                                            // p = v0<=>0 = !v0
+//    predicate q = !p;                                                           // q = !p
+//
+//    // then we define the transition relation over sp
+//    transition trans = transition(sp, 0, false) ^ transition(sp, 0, true);      // t(u, v) := u0^v0 
+//
+//    // now, we get the predicates for exp, axp and exexp.
+//    predicate exp = trans.ex(p);
+//    predicate axp = trans.ax(p);
+//    predicate exexp = trans.ex(trans.ex(p));
+//    
+//    // print out all bdds generated into dot files
+//    p.get_bdd().save_dot("./out/p.dot");
+//    q.get_bdd().save_dot("./out/q.dot");
+//    exp.get_bdd().save_dot("./out/exp.dot");
+//    axp.get_bdd().save_dot("./out/axp.dot");
+//    exexp.get_bdd().save_dot("./out/exexp.dot");
+//
+//    // now we check if exp <=> q and exexp <=> p. as exp(v0) vs some other vi is just the same
+//    // function with different names for bound variables, we can just check exp(v0) <=> q(v0) and so
+//    // on
+//    std::cout << "exp <=> q "       << (exp == q   ? "holds" : "does not hold") << std::endl;
+//    std::cout << "ex(exp) <=> p "   << (exexp == p ? "holds" : "does not hold") << std::endl;
+//
+//    // check some very basic properties
+//    predicate efp = trans.ef(p);
+//    predicate egp = trans.eg(p);
+//    efp.get_bdd().save_dot("./out/efp.dot");
+//    egp.get_bdd().save_dot("./out/gfp.dot");
+//    (p || trans.ex(p)).get_bdd().save_dot("./out/dbg.dot");
+//    trans.ax(p || trans.ex(p)).get_bdd().save_dot("./out/dbg2.dot");
+//
+//    std::cout << "efp " << (trans.ef(p).is_false() ? "is unsat" : "is sat") << std::endl;
+//    std::cout << "egp " << (trans.eg(p).is_false() ? "is unsat" : "is sat") << std::endl;
+//    std::cout << "afp " << (trans.af(p).is_false() ? "is unsat" : "is sat") << std::endl;
+//    std::cout << "ag(!p => ex(p)) " << (trans.ag(p || trans.ex(p)).is_true() ? "is valid" : "is invalid") << std::endl;
+//}
+
+
+
 
 /**
  * print a short message explaining the command line usage
@@ -48,17 +115,13 @@ bool parse_args(int argc, char** argv, std::string& spec_path)
 
 
 /**
- * Parse the given s-expr into a predicate. throws a runtime_error containing string representation
- * of problematic s-expr on failure.
+ * parse the given s-expr into a predicate. throws a string error on failure.
  */
 Predicate parse_predicate(const StateSpace& sp, const sexpresso::Sexp& expr)
 {
     if(expr.isString())
     {
-        if(expr.value.str == "true")        return Predicate(sp, true);
-        else if(expr.value.str == "false")  return Predicate(sp, false);
-
-        std::cout << "Constant predicate must be true or false" << std::endl;
+        std::cout << "Predicate must be an s-expression" << std::endl;
         throw std::runtime_error(expr.toString());
     }
     const std::string& fn = expr.value.sexp[0].value.str;
@@ -69,8 +132,8 @@ Predicate parse_predicate(const StateSpace& sp, const sexpresso::Sexp& expr)
             std::cout << "Or takes atleast two arguments" << std::endl;
             throw std::runtime_error(expr.toString());
         }
-        Predicate ret = parse_predicate(sp, expr.value.sexp[1]);
-        for(size_t i = 2; i < expr.childCount(); i++) ret |= parse_predicate(sp, expr.value.sexp[i]);
+        Predicate ret(sp, false);
+        for(size_t i = 1; i < expr.childCount(); i++) ret |= parse_predicate(sp, expr.value.sexp[i]);
         return ret;
     }
     else if(fn == std::string("and"))
@@ -80,8 +143,8 @@ Predicate parse_predicate(const StateSpace& sp, const sexpresso::Sexp& expr)
             std::cout << "And takes atleast two arguments" << std::endl;
             throw std::runtime_error(expr.toString());
         }
-        Predicate ret = parse_predicate(sp, expr.value.sexp[1]);
-        for(size_t i = 2; i < expr.childCount(); i++) ret &= parse_predicate(sp, expr.value.sexp[i]);
+        Predicate ret(sp, true);
+        for(size_t i = 1; i < expr.childCount(); i++) ret &= parse_predicate(sp, expr.value.sexp[i]);
         return ret;
     }
     else if(fn == std::string("xor"))
@@ -91,8 +154,8 @@ Predicate parse_predicate(const StateSpace& sp, const sexpresso::Sexp& expr)
             std::cout << "Xor takes atleast two arguments" << std::endl;
             throw std::runtime_error(expr.toString());
         }
-        Predicate ret = parse_predicate(sp, expr.value.sexp[1]);
-        for(size_t i = 2; i < expr.childCount(); i++) ret ^= parse_predicate(sp, expr.value.sexp[i]);
+        Predicate ret(sp, true);
+        for(size_t i = 1; i < expr.childCount(); i++) ret ^= parse_predicate(sp, expr.value.sexp[i]);
         return ret;
     }
     else if(fn == std::string("not"))
@@ -146,10 +209,7 @@ Transition parse_transition(const StateSpace& sp, const sexpresso::Sexp& expr)
 {
     if(expr.isString())
     {
-        if(expr.value.str == "true")        return Transition(sp, true);
-        else if(expr.value.str == "false")  return Transition(sp, false);
-
-        std::cout << "constant in transition must be `true` or `false`" << std::endl;
+        std::cout << "Transition must be an s-expression" << std::endl;
         throw std::runtime_error(expr.toString());
     }
     const std::string& fn = expr.value.sexp[0].value.str;
@@ -160,8 +220,8 @@ Transition parse_transition(const StateSpace& sp, const sexpresso::Sexp& expr)
             std::cout << "Or takes atleast two arguments" << std::endl;
             throw std::runtime_error(expr.toString());
         }
-        Transition ret = parse_transition(sp, expr.value.sexp[1]);
-        for(size_t i = 2; i < expr.childCount(); i++) ret |= parse_transition(sp, expr.value.sexp[i]);
+        Transition ret(sp, false);
+        for(size_t i = 1; i < expr.childCount(); i++) ret |= parse_transition(sp, expr.value.sexp[i]);
         return ret;
     }
     else if(fn == std::string("and"))
@@ -171,8 +231,8 @@ Transition parse_transition(const StateSpace& sp, const sexpresso::Sexp& expr)
             std::cout << "And takes atleast two arguments" << std::endl;
             throw std::runtime_error(expr.toString());
         }
-        Transition ret = parse_transition(sp, expr.value.sexp[1]);
-        for(size_t i = 2; i < expr.childCount(); i++) ret &= parse_transition(sp, expr.value.sexp[i]);
+        Transition ret(sp, true);
+        for(size_t i = 1; i < expr.childCount(); i++) ret &= parse_transition(sp, expr.value.sexp[i]);
         return ret;
     }
     else if(fn == std::string("xor"))
@@ -182,8 +242,8 @@ Transition parse_transition(const StateSpace& sp, const sexpresso::Sexp& expr)
             std::cout << "Xor takes atleast two arguments" << std::endl;
             throw std::runtime_error(expr.toString());
         }
-        Transition ret = parse_transition(sp, expr.value.sexp[1]);
-        for(size_t i = 2; i < expr.childCount(); i++) ret ^= parse_transition(sp, expr.value.sexp[i]);
+        Transition ret(sp, true);
+        for(size_t i = 1; i < expr.childCount(); i++) ret ^= parse_transition(sp, expr.value.sexp[i]);
         return ret;
     }
     else if(fn == std::string("not"))
@@ -243,9 +303,7 @@ bool check_property(const StateSpace& sp, const sexpresso::Sexp& expr)
 {
     if(expr.isString())
     {
-        if(expr.value.str == "true" || expr.value.str == "false") return true;
-
-        std::cout << "Constant in property must be true or false" << std::endl;
+        std::cout << "Property must be an s-expression" << std::endl;
         return false;
     }
     const std::string& fn = expr.value.sexp[0].value.str;
@@ -256,20 +314,11 @@ bool check_property(const StateSpace& sp, const sexpresso::Sexp& expr)
         if(expr.childCount() < 3)
         {
             std::cout << fn << " takes atleast two arguments" << std::endl;
-            return false;
+            throw std::runtime_error(expr.toString());
         }
         bool ret = true;
         for(size_t i = 1; i < expr.childCount(); i++) ret &= check_property(sp, expr.value.sexp[i]);
         return ret;
-    }
-    else if(fn == std::string("not"))
-    {
-        if(expr.childCount() != 2)
-        {
-            std::cout << fn << " takes exacly one argument" << std::endl;
-            return false;
-        }
-        return check_property(sp, expr.value.sexp[1]);
     }
     else if(fn == std::string("EX")     || 
             fn == std::string("EF")     ||
@@ -337,105 +386,36 @@ bool check_property(const StateSpace& sp, const sexpresso::Sexp& expr)
 /**
  * Converts the CTL expression to a Predicate. Assumes expression to be syntaxially valid
  */
-Predicate ctl_to_pred(const StateSpace& sp, const Transition& trans, const sexpresso::Sexp& expr)
+Predicate ctl_to_pred(const StateSpace& sp, const sexpresso::Sexp& expr)
 {
-    if(expr.isString())
-    {
-        if(expr.value.str == "true")        return Predicate(sp, true);
-        else if(expr.value.str == "false")  return Predicate(sp, false);
-
-        std::cout << "Constant predicate must be true or false" << std::endl;
-        throw std::runtime_error(expr.toString());
-    }
     const std::string& fn = expr.value.sexp[0].value.str;
-    if      (fn == "var")   return Predicate(sp, std::stoi(expr.value.sexp[1].value.str));
-    else if (fn == "and")
+    if(fn == "and")
     {
-        Predicate ret = ctl_to_pred(sp, trans, expr.value.sexp[1]);
-        for(size_t i = 2; i < expr.childCount(); i++) ret &= ctl_to_pred(sp, trans, expr.value.sexp[i]);
+        Pred ret = ctl_to_pred(sp, expr.value.sexp[1];
+        for(int i = 2; i < expr.childCount(); i++) ret &= ctl_to_pred(sp, expr.value.sexp[i]);
         return ret;
     }
-    else if (fn == "or")
+    else if(fn == "or")
     {
-        Predicate ret = ctl_to_pred(sp, trans, expr.value.sexp[1]);
-        for(size_t i = 1; i < expr.childCount(); i++) ret |= ctl_to_pred(sp, trans, expr.value.sexp[i]);
+        Pred ret = ctl_to_pred(sp, expr.value.sexp[1];
+        for(int i = 1; i < expr.childCount(); i++) ret |= ctl_to_pred(sp, expr.value.sexp[i]);
         return ret;
     }
-    else if (fn == "xor")
+    else if(fn == "xor")
     {
-        Predicate ret = ctl_to_pred(sp, trans, expr.value.sexp[1]);
-        for(size_t i = 1; i < expr.childCount(); i++) ret ^= ctl_to_pred(sp, trans, expr.value.sexp[i]);
+        Pred ret = ctl_to_pred(sp, expr.value.sexp[1];
+        for(int i = 1; i < expr.childCount(); i++) ret ^= ctl_to_pred(sp, expr.value.sexp[i]);
         return ret;
     }
-    else if (fn == "not")   return !ctl_to_pred(sp, trans, expr.value.sexp[1]);
-    else if (fn == "EX")    return trans.EX(ctl_to_pred(sp, trans, expr.value.sexp[1]));
-    else if (fn == "EF")    return trans.EF(ctl_to_pred(sp, trans, expr.value.sexp[1]));
-    else if (fn == "EG")    return trans.EG(ctl_to_pred(sp, trans, expr.value.sexp[1]));
-    else if (fn == "EU")    return trans.EU(ctl_to_pred(sp, trans, expr.value.sexp[1]),
-                                            ctl_to_pred(sp, trans, expr.value.sexp[2]));
-    else if (fn == "ER")    return trans.ER(ctl_to_pred(sp, trans, expr.value.sexp[1]),
-                                            ctl_to_pred(sp, trans, expr.value.sexp[2]));
-    else if (fn == "AX")    return trans.AX(ctl_to_pred(sp, trans, expr.value.sexp[1]));
-    else if (fn == "AF")    return trans.AF(ctl_to_pred(sp, trans, expr.value.sexp[1]));
-    else if (fn == "AG")    return trans.AG(ctl_to_pred(sp, trans, expr.value.sexp[1]));
-    else if (fn == "AU")    return trans.AU(ctl_to_pred(sp, trans, expr.value.sexp[1]),
-                                            ctl_to_pred(sp, trans, expr.value.sexp[2]));
-    else if (fn == "AR")    return trans.AR(ctl_to_pred(sp, trans, expr.value.sexp[1]),
-                                            ctl_to_pred(sp, trans, expr.value.sexp[2]));
-    else throw std::runtime_error("Unknown function in property specification");
+    else if (fn == "not") return !ctl_to_pred(sp, expr.value.sexp[1]);
+    
+    
+
 }
 
-/**
- * Version of previous function modified to handle fairness constraints
- */ 
-Predicate ctl_to_pred_fair(const StateSpace& sp, const Transition& trans, const sexpresso::Sexp& expr)
-{
-    if(expr.isString())
-    {
-        if(expr.value.str == "true")        return Predicate(sp, true);
-        else if(expr.value.str == "false")  return Predicate(sp, false);
 
-        std::cout << "Constant predicate must be true or false" << std::endl;
-        throw std::runtime_error(expr.toString());
-    }
-    const std::string& fn = expr.value.sexp[0].value.str;
-    if      (fn == "var")   return Predicate(sp, std::stoi(expr.value.sexp[1].value.str)) &&
-                                    trans.EG_fair(Predicate(sp, true));
-    else if (fn == "and")
-    {
-        Predicate ret = ctl_to_pred_fair(sp, trans, expr.value.sexp[1]);
-        for(size_t i = 2; i < expr.childCount(); i++) ret &= ctl_to_pred_fair(sp, trans, expr.value.sexp[i]);
-        return ret;
-    }
-    else if (fn == "or")
-    {
-        Predicate ret = ctl_to_pred_fair(sp, trans, expr.value.sexp[1]);
-        for(size_t i = 1; i < expr.childCount(); i++) ret |= ctl_to_pred_fair(sp, trans, expr.value.sexp[i]);
-        return ret;
-    }
-    else if (fn == "xor")
-    {
-        Predicate ret = ctl_to_pred_fair(sp, trans, expr.value.sexp[1]);
-        for(size_t i = 1; i < expr.childCount(); i++) ret ^= ctl_to_pred_fair(sp, trans, expr.value.sexp[i]);
-        return ret;
-    }
-    else if (fn == "not")   return !ctl_to_pred_fair(sp, trans, expr.value.sexp[1]);
-    else if (fn == "EX")    return trans.EX_fair(ctl_to_pred_fair(sp, trans, expr.value.sexp[1]));
-    else if (fn == "EF")    return trans.EF_fair(ctl_to_pred_fair(sp, trans, expr.value.sexp[1]));
-    else if (fn == "EG")    return trans.EG_fair(ctl_to_pred_fair(sp, trans, expr.value.sexp[1]));
-    else if (fn == "EU")    return trans.EU_fair(ctl_to_pred_fair(sp, trans, expr.value.sexp[1]),
-                                                 ctl_to_pred_fair(sp, trans, expr.value.sexp[2]));
-    else if (fn == "ER")    return trans.ER_fair(ctl_to_pred_fair(sp, trans, expr.value.sexp[1]),
-                                                 ctl_to_pred_fair(sp, trans, expr.value.sexp[2]));
-    else if (fn == "AX")    return trans.AX_fair(ctl_to_pred_fair(sp, trans, expr.value.sexp[1]));
-    else if (fn == "AF")    return trans.AF_fair(ctl_to_pred_fair(sp, trans, expr.value.sexp[1]));
-    else if (fn == "AG")    return trans.AG_fair(ctl_to_pred_fair(sp, trans, expr.value.sexp[1]));
-    else if (fn == "AU")    return trans.AU_fair(ctl_to_pred_fair(sp, trans, expr.value.sexp[1]),
-                                                 ctl_to_pred_fair(sp, trans, expr.value.sexp[2]));
-    else if (fn == "AR")    return trans.AR_fair(ctl_to_pred_fair(sp, trans, expr.value.sexp[1]),
-                                                 ctl_to_pred_fair(sp, trans, expr.value.sexp[2]));
-    else throw std::runtime_error("Unknown function in property specification");
-}
+
+
 
 /**
  * Main method
@@ -463,6 +443,7 @@ int main(int argc, char** argv)
             std::string line; 
             while(std::getline(spec_file, line)) spec_str += line.substr(0, line.find(';'));
         }
+        std::cout << "Specification dump \n" << spec_str << std::endl; // DEBUG
 
 
         // Parse file and build StateSpace, init Predicate and Transition
@@ -474,9 +455,13 @@ int main(int argc, char** argv)
         }
         spec = spec.value.sexp[0];
         if(!spec.isSexp() || spec.value.sexp[0].value.str != std::string("system")
-                          || (spec.childCount() != 5 && spec.childCount() != 6)) 
+                          || spec.childCount() != 5) 
         { 
-            std::cout << "Top level must be of form (system n_bits init trans props [fairness])" << std::endl;
+            std::cout << "Top level must be of form (system n_bits init trans props)" << std::endl;
+            // DEBUG
+            std::cout << (spec.isSexp() ? "Sexp" : "Not Sexp ") << std::endl;
+            std::cout << spec.value.sexp[0].toString() << std::endl;
+            std::cout << spec.value.sexp[0].childCount() << std::endl;
             return EXIT_FAILURE;
         }
         if(!spec.value.sexp[1].isString())
@@ -503,7 +488,6 @@ int main(int argc, char** argv)
         Transition trans = parse_transition(space, spec.value.sexp[3]);
 
 
-
         // Check syntax of the properties
         if(!spec.value.sexp[4].isSexp() 
                 || !spec.value.sexp[4].value.sexp[0].isString()
@@ -516,204 +500,7 @@ int main(int argc, char** argv)
             if(!check_property(space, spec.value.sexp[4].value.sexp[i])) return EXIT_FAILURE;
         std::cout << "Specification parsed, syntax is correct" << std::endl;
 
-
-        // Check if fairness conditions are provided
-        if(spec.childCount() == 6)
-        {
-            std::cout << "Reading fairness conditions" << std::endl;
-            // Parse the fairness conditions
-            if(spec.value.sexp[5].isString())
-            {
-                std::cout << "Fifth argument should be a list of fairness conditions (f1 f2..)" <<
-                    std::endl;
-                return EXIT_FAILURE;
-            }
-            for(size_t i = 0; i < spec.value.sexp[5].childCount(); ++i)
-               trans.add_fairness(parse_predicate(space, spec.value.sexp[5].value.sexp[i]));
-
-
-            // Do the model checking
-            for(size_t i = 1; i < spec.value.sexp[4].childCount(); ++i)
-                std::cout << "Property " << i << " is " <<
-                    ((ctl_to_pred_fair(space, trans, spec.value.sexp[4].value.sexp[i]) && init).is_false() ?
-                        "unsat" : "sat") << std::endl;
-
-
-            return EXIT_SUCCESS;
-        }
-
         
-        // Loop over all properties again and model check them
-        for(size_t i = 1; i < spec.value.sexp[4].childCount(); ++i)
-        {
-            const sexpresso::Sexp& prop = spec.value.sexp[4].value.sexp[i];
-            if(prop.isString())
-            {
-                std::cout << "Property " << i << " is " <<
-                    ((ctl_to_pred(space, trans, prop) && init).is_false() ? "unsat" : "sat") << 
-                    std::endl;
-                std::cout << "Could not generate witness or counterexample. " << std::endl;
-
-            }
-            const std::string& fn = prop.value.sexp[0].value.str;
-            // Case split over each outer level connective to handle each connective differently for
-            // cex/witness generation
-            if(fn == "EF")
-            {
-                const sexpresso::Sexp& subprop = prop.value.sexp[1];
-                Predicate subpred = ctl_to_pred(space, trans, subprop);
-                Predicate pred = trans.EF(subpred);
-                if(!((pred && init).is_false()))
-                {
-                    std::cout << "Property " << i << " is sat." << std::endl;
-                    std::cout << "Witness: " << std::endl;
-                    trans.gen_witness_EF(init, pred, subpred).print();
-                }
-                else
-                {
-                    std::cout << "Property " << i << " is unsat." << std::endl;
-                    std::cout << "Cannot generate counterexample for EF" << std::endl;
-                }
-            }
-            else if(fn == "EG")
-            {
-                const sexpresso::Sexp& subprop = prop.value.sexp[1];
-                Predicate subpred = ctl_to_pred(space, trans, subprop);
-                Predicate pred = trans.EG(subpred);
-                if(!((pred && init).is_false()))
-                {
-                    std::cout << "Property " << i << " is sat." << std::endl;
-                    std::cout << "Witness: " << std::endl;
-                    trans.gen_witness_EG(init, pred, subpred).print();
-                }
-                else
-                {
-                    std::cout << "Property " << i << " is unsat." << std::endl;
-                    std::cout << "Cannot generate counterexample for EG" << std::endl;
-                }
-            }    
-            else if(fn == "EU")
-            {
-                const sexpresso::Sexp& subpropl = prop.value.sexp[1];
-                const sexpresso::Sexp& subpropr = prop.value.sexp[2];
-                Predicate subpredl = ctl_to_pred(space, trans, subpropl);
-                Predicate subpredr = ctl_to_pred(space, trans, subpropr);
-                Predicate pred = trans.EU(subpredl, subpredr);
-                if(!((pred && init).is_false()))
-                {
-                    std::cout << "Property " << i << " is sat." << std::endl;
-                    std::cout << "Witness: " << std::endl;
-                    trans.gen_witness_EU(init, pred, subpredl, subpredr).print();
-                }
-                else
-                {
-                    std::cout << "Property " << i << " is unsat." << std::endl;
-                    std::cout << "Cannot generate counterexample for EU" << std::endl;
-                }
-            }
-            else if(fn == "ER")
-            {
-                const sexpresso::Sexp& subpropl = prop.value.sexp[1];
-                const sexpresso::Sexp& subpropr = prop.value.sexp[2];
-                Predicate subpredl = ctl_to_pred(space, trans, subpropl);
-                Predicate subpredr = ctl_to_pred(space, trans, subpropr);
-                Predicate pred = trans.ER(subpredl, subpredr);
-                if(!((pred && init).is_false()))
-                {
-                    std::cout << "Property " << i << " is sat." << std::endl;
-                    std::cout << "Witness: " << std::endl;
-                    trans.gen_witness_ER(init, pred, subpredl, subpredr).print();
-                }
-                else
-                {
-                    std::cout << "Property " << i << " is unsat." << std::endl;
-                    std::cout << "Cannot generate counterexample for ER" << std::endl;
-                }
-            }
-            else if(fn == "AF")
-            {
-                const sexpresso::Sexp& subprop = prop.value.sexp[1];
-                Predicate subpred = ctl_to_pred(space, trans, subprop);
-                Predicate pred = trans.AF(subpred);
-                if((pred && init).is_false())
-                {
-                    std::cout << "Property " << i << " is unsat." << std::endl;
-                    std::cout << "Counterexample: " << std::endl;
-                    trans.gen_cex_AF(init, pred, subpred).print();
-                }
-                else
-                {
-                    std::cout << "Property " << i << " is sat." << std::endl;
-                    std::cout << "Cannot generate witness for AF" << std::endl;
-                }
-            }
-            else if(fn == "AG")
-            {
-                const sexpresso::Sexp& subprop = prop.value.sexp[1];
-                Predicate subpred = ctl_to_pred(space, trans, subprop);
-                Predicate pred = trans.AG(subpred);
-                if((pred && init).is_false())
-                {
-                    std::cout << "Property " << i << " is unsat." << std::endl;
-                    std::cout << "Counterexample: " << std::endl;
-                    trans.gen_cex_AG(init, pred, subpred).print();
-                }
-                else
-                {
-                    std::cout << "Property " << i << " is sat." << std::endl;
-                    std::cout << "Cannot generate witness for AG" << std::endl;
-                }
-            }   
-            else if(fn == "AU")
-            {
-                const sexpresso::Sexp& subpropl = prop.value.sexp[1];
-                const sexpresso::Sexp& subpropr = prop.value.sexp[2];
-                Predicate subpredl = ctl_to_pred(space, trans, subpropl);
-                Predicate subpredr = ctl_to_pred(space, trans, subpropr);
-                Predicate pred = trans.AU(subpredl, subpredr);
-                if((pred && init).is_false())
-                {
-                    std::cout << "Property " << i << " is unsat." << std::endl;
-                    std::cout << "Counterexample: " << std::endl;
-                    trans.gen_cex_AU(init, pred, subpredl, subpredr).print();
-                }
-                else
-                {
-                    std::cout << "Property " << i << " is sat." << std::endl;
-                    std::cout << "Cannot generate witness for AU" << std::endl;
-                }
-            }
-            else if(fn == "AR")
-            {
-                const sexpresso::Sexp& subpropl = prop.value.sexp[1];
-                const sexpresso::Sexp& subpropr = prop.value.sexp[2];
-                Predicate subpredl = ctl_to_pred(space, trans, subpropl);
-                Predicate subpredr = ctl_to_pred(space, trans, subpropr);
-                Predicate pred = trans.AR(subpredl, subpredr);
-                if((pred && init).is_false())
-                {
-                    std::cout << "Property " << i << " is unsat." << std::endl;
-                    std::cout << "Counterexample: " << std::endl;
-                    trans.gen_cex_AR(init, pred, subpredl, subpredr).print();
-                }
-                else
-                {
-                    std::cout << "Property " << i << " is sat." << std::endl;
-                    std::cout << "Cannot generate witness for AR" << std::endl;
-                }
-            }
-            // If the outermost connective is none of the above, then do the standard MC without
-            // counterexample generation.
-            else 
-            {
-                std::cout << "Property " << i << " is " <<
-                    ((ctl_to_pred(space, trans, prop) && init).is_false() ? "unsat" : "sat") << 
-                    std::endl;
-                std::cout << "Could not generate witness or counterexample for top level " << fn <<
-                    std::endl;
-            } 
-        }
-
         
         
 
