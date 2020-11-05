@@ -48,13 +48,17 @@ bool parse_args(int argc, char** argv, std::string& spec_path)
 
 
 /**
- * parse the given s-expr into a predicate. throws a string error on failure.
+ * Parse the given s-expr into a predicate. throws a runtime_error containing string representation
+ * of problematic s-expr on failure.
  */
 Predicate parse_predicate(const StateSpace& sp, const sexpresso::Sexp& expr)
 {
     if(expr.isString())
     {
-        std::cout << "Predicate must be an s-expression" << std::endl;
+        if(expr.value.str == "true")        return Predicate(sp, true);
+        else if(expr.value.str == "false")  return Predicate(sp, false);
+
+        std::cout << "Constant predicate must be true or false" << std::endl;
         throw std::runtime_error(expr.toString());
     }
     const std::string& fn = expr.value.sexp[0].value.str;
@@ -142,7 +146,10 @@ Transition parse_transition(const StateSpace& sp, const sexpresso::Sexp& expr)
 {
     if(expr.isString())
     {
-        std::cout << "Transition must be an s-expression" << std::endl;
+        if(expr.value.str == "true")        return Transition(sp, true);
+        else if(expr.value.str == "false")  return Transition(sp, false);
+
+        std::cout << "constant in transition must be `true` or `false`" << std::endl;
         throw std::runtime_error(expr.toString());
     }
     const std::string& fn = expr.value.sexp[0].value.str;
@@ -236,7 +243,9 @@ bool check_property(const StateSpace& sp, const sexpresso::Sexp& expr)
 {
     if(expr.isString())
     {
-        std::cout << "Property must be an s-expression" << std::endl;
+        if(expr.value.str == "true" || expr.value.str == "false") return true;
+
+        std::cout << "Constant in property must be true or false" << std::endl;
         return false;
     }
     const std::string& fn = expr.value.sexp[0].value.str;
@@ -330,6 +339,14 @@ bool check_property(const StateSpace& sp, const sexpresso::Sexp& expr)
  */
 Predicate ctl_to_pred(const StateSpace& sp, const Transition& trans, const sexpresso::Sexp& expr)
 {
+    if(expr.isString())
+    {
+        if(expr.value.str == "true")        return Predicate(sp, true);
+        else if(expr.value.str == "false")  return Predicate(sp, false);
+
+        std::cout << "Constant predicate must be true or false" << std::endl;
+        throw std::runtime_error(expr.toString());
+    }
     const std::string& fn = expr.value.sexp[0].value.str;
     if      (fn == "var")   return Predicate(sp, std::stoi(expr.value.sexp[1].value.str));
     else if (fn == "and")
@@ -373,6 +390,14 @@ Predicate ctl_to_pred(const StateSpace& sp, const Transition& trans, const sexpr
  */ 
 Predicate ctl_to_pred_fair(const StateSpace& sp, const Transition& trans, const sexpresso::Sexp& expr)
 {
+    if(expr.isString())
+    {
+        if(expr.value.str == "true")        return Predicate(sp, true);
+        else if(expr.value.str == "false")  return Predicate(sp, false);
+
+        std::cout << "Constant predicate must be true or false" << std::endl;
+        throw std::runtime_error(expr.toString());
+    }
     const std::string& fn = expr.value.sexp[0].value.str;
     if      (fn == "var")   return Predicate(sp, std::stoi(expr.value.sexp[1].value.str)) &&
                                     trans.EG_fair(Predicate(sp, true));
@@ -518,11 +543,176 @@ int main(int argc, char** argv)
         }
 
         
-        // Do the basic model checking
+        // Loop over all properties again and model check them
         for(size_t i = 1; i < spec.value.sexp[4].childCount(); ++i)
-            std::cout << "Property " << i << " is " <<
-                ((ctl_to_pred(space, trans, spec.value.sexp[4].value.sexp[i]) && init).is_false() ?
-                    "unsat" : "sat") << std::endl;
+        {
+            const sexpresso::Sexp& prop = spec.value.sexp[4].value.sexp[i];
+            if(prop.isString())
+            {
+                std::cout << "Property " << i << " is " <<
+                    ((ctl_to_pred(space, trans, prop) && init).is_false() ? "unsat" : "sat") << 
+                    std::endl;
+                std::cout << "Could not generate witness or counterexample. " << std::endl;
+
+            }
+            const std::string& fn = prop.value.sexp[0].value.str;
+            // Case split over each outer level connective to handle each connective differently for
+            // cex/witness generation
+            if(fn == "EF")
+            {
+                const sexpresso::Sexp& subprop = prop.value.sexp[1];
+                Predicate subpred = ctl_to_pred(space, trans, subprop);
+                Predicate pred = trans.EF(subpred);
+                if(!((pred && init).is_false()))
+                {
+                    std::cout << "Property " << i << " is sat." << std::endl;
+                    std::cout << "Witness: " << std::endl;
+                    trans.gen_witness_EF(init, pred, subpred).print();
+                }
+                else
+                {
+                    std::cout << "Property " << i << " is unsat." << std::endl;
+                    std::cout << "Cannot generate counterexample for EF" << std::endl;
+                }
+            }
+            else if(fn == "EG")
+            {
+                const sexpresso::Sexp& subprop = prop.value.sexp[1];
+                Predicate subpred = ctl_to_pred(space, trans, subprop);
+                Predicate pred = trans.EG(subpred);
+                if(!((pred && init).is_false()))
+                {
+                    std::cout << "Property " << i << " is sat." << std::endl;
+                    std::cout << "Witness: " << std::endl;
+                    trans.gen_witness_EG(init, pred, subpred).print();
+                }
+                else
+                {
+                    std::cout << "Property " << i << " is unsat." << std::endl;
+                    std::cout << "Cannot generate counterexample for EG" << std::endl;
+                }
+            }    
+            else if(fn == "EU")
+            {
+                const sexpresso::Sexp& subpropl = prop.value.sexp[1];
+                const sexpresso::Sexp& subpropr = prop.value.sexp[2];
+                Predicate subpredl = ctl_to_pred(space, trans, subpropl);
+                Predicate subpredr = ctl_to_pred(space, trans, subpropr);
+                Predicate pred = trans.EU(subpredl, subpredr);
+                if(!((pred && init).is_false()))
+                {
+                    std::cout << "Property " << i << " is sat." << std::endl;
+                    std::cout << "Witness: " << std::endl;
+                    trans.gen_witness_EU(init, pred, subpredl, subpredr).print();
+                }
+                else
+                {
+                    std::cout << "Property " << i << " is unsat." << std::endl;
+                    std::cout << "Cannot generate counterexample for EU" << std::endl;
+                }
+            }
+            else if(fn == "ER")
+            {
+                const sexpresso::Sexp& subpropl = prop.value.sexp[1];
+                const sexpresso::Sexp& subpropr = prop.value.sexp[2];
+                Predicate subpredl = ctl_to_pred(space, trans, subpropl);
+                Predicate subpredr = ctl_to_pred(space, trans, subpropr);
+                Predicate pred = trans.ER(subpredl, subpredr);
+                if(!((pred && init).is_false()))
+                {
+                    std::cout << "Property " << i << " is sat." << std::endl;
+                    std::cout << "Witness: " << std::endl;
+                    trans.gen_witness_ER(init, pred, subpredl, subpredr).print();
+                }
+                else
+                {
+                    std::cout << "Property " << i << " is unsat." << std::endl;
+                    std::cout << "Cannot generate counterexample for ER" << std::endl;
+                }
+            }
+            else if(fn == "AF")
+            {
+                const sexpresso::Sexp& subprop = prop.value.sexp[1];
+                Predicate subpred = ctl_to_pred(space, trans, subprop);
+                Predicate pred = trans.AF(subpred);
+                if((pred && init).is_false())
+                {
+                    std::cout << "Property " << i << " is unsat." << std::endl;
+                    std::cout << "Counterexample: " << std::endl;
+                    trans.gen_cex_AF(init, pred, subpred).print();
+                }
+                else
+                {
+                    std::cout << "Property " << i << " is sat." << std::endl;
+                    std::cout << "Cannot generate witness for AF" << std::endl;
+                }
+            }
+            else if(fn == "AG")
+            {
+                const sexpresso::Sexp& subprop = prop.value.sexp[1];
+                Predicate subpred = ctl_to_pred(space, trans, subprop);
+                Predicate pred = trans.AG(subpred);
+                if((pred && init).is_false())
+                {
+                    std::cout << "Property " << i << " is unsat." << std::endl;
+                    std::cout << "Counterexample: " << std::endl;
+                    trans.gen_cex_AG(init, pred, subpred).print();
+                }
+                else
+                {
+                    std::cout << "Property " << i << " is sat." << std::endl;
+                    std::cout << "Cannot generate witness for AG" << std::endl;
+                }
+            }   
+            else if(fn == "AU")
+            {
+                const sexpresso::Sexp& subpropl = prop.value.sexp[1];
+                const sexpresso::Sexp& subpropr = prop.value.sexp[2];
+                Predicate subpredl = ctl_to_pred(space, trans, subpropl);
+                Predicate subpredr = ctl_to_pred(space, trans, subpropr);
+                Predicate pred = trans.AU(subpredl, subpredr);
+                if((pred && init).is_false())
+                {
+                    std::cout << "Property " << i << " is unsat." << std::endl;
+                    std::cout << "Counterexample: " << std::endl;
+                    trans.gen_cex_AU(init, pred, subpredl, subpredr).print();
+                }
+                else
+                {
+                    std::cout << "Property " << i << " is sat." << std::endl;
+                    std::cout << "Cannot generate witness for AU" << std::endl;
+                }
+            }
+            else if(fn == "AR")
+            {
+                const sexpresso::Sexp& subpropl = prop.value.sexp[1];
+                const sexpresso::Sexp& subpropr = prop.value.sexp[2];
+                Predicate subpredl = ctl_to_pred(space, trans, subpropl);
+                Predicate subpredr = ctl_to_pred(space, trans, subpropr);
+                Predicate pred = trans.AR(subpredl, subpredr);
+                if((pred && init).is_false())
+                {
+                    std::cout << "Property " << i << " is unsat." << std::endl;
+                    std::cout << "Counterexample: " << std::endl;
+                    trans.gen_cex_AR(init, pred, subpredl, subpredr).print();
+                }
+                else
+                {
+                    std::cout << "Property " << i << " is sat." << std::endl;
+                    std::cout << "Cannot generate witness for AR" << std::endl;
+                }
+            }
+            // If the outermost connective is none of the above, then do the standard MC without
+            // counterexample generation.
+            else 
+            {
+                std::cout << "Property " << i << " is " <<
+                    ((ctl_to_pred(space, trans, prop) && init).is_false() ? "unsat" : "sat") << 
+                    std::endl;
+                std::cout << "Could not generate witness or counterexample for top level " << fn <<
+                    std::endl;
+            } 
+        }
 
         
         

@@ -80,6 +80,11 @@ class BDD
         bool is_one()   const;
 
         /**
+         * Get a satisfying assignment for this BDD
+         */
+        std::vector<bool> get_assign();
+
+        /**
          * Abstract the BDD using quantifiers over variable with given index, or vector of variables
          * with given indices, or over variables in the set represented by a cube.
          */

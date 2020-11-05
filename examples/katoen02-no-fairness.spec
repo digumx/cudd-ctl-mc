@@ -19,6 +19,11 @@
                     (EU (not (var 0)) (EG (var 1))) ; False, for all paths starting from 00, v0 is
                                                     ; false for the first time at 10, where no path
                                                     ; is such that from there v1 always holds
+                    (EF (and (var 0) (var 1)))      ; True, 11 is reachable
+                    (EG (EF (and (var 0) (var 1)))) ; True, there are paths where 11 occurs
+                                                    ; inifinitely often, that gives a sat model.
+                    (AF (AG (or (not (var 0))
+                                (not (var 1)))))    ; False, negation of the previous.
         )
 )
 

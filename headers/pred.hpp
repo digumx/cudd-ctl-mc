@@ -26,6 +26,7 @@
 class StateSpace;
 class Predicate;
 class Transition;
+class State;
 
 
 
@@ -74,6 +75,70 @@ class StateSpace
 
 };
 
+
+/**
+ * A class representing a state. Contains both assignments for each of the bits, and a BDD
+ * representing the assignments
+ */
+class State
+{
+    public:
+        const StateSpace& space;
+
+        /**
+         * Construct a state from an assignment
+         */
+        State(const StateSpace& sp, const std::vector<bool>& assign);
+
+        /**
+         * Construct a state space from a nonempty predicate
+         */
+        State(const Predicate& pred);
+
+        /**
+         * Assignment operator, cannot be auto generated because of const StateSpace& type member.
+         */
+        State& operator = (const State& other);
+
+        /**
+         * Deep equality check between two states, checks if the states refer to the same assignment
+         */ 
+        bool operator == (const State& other);
+
+        /**
+         * Returns the state as a string of boolean values denoted by 0 or 1, one for each variable.
+         * n_space is the number of spaces seperating each bit in the string returned
+         */
+        std::string to_string(size_t n_space) const;
+
+
+    private: 
+        std::vector<bool> assign;
+        BDD bdd_u;
+        BDD bdd_v;
+
+    friend class Transition;
+};
+
+
+/**
+ * Represents a finite or lasso shaped path
+ */
+struct Path
+{
+    bool is_finite;
+    /**
+     * If the path is finite, it is given by states. If it is infinite, then the part of states upto
+     * (not including) the index given by lasso_point is the head, and the rest represents the loop
+     */
+    std::vector<State> states;
+    size_t lasso_point;
+
+    /**
+     * Prints path out to stdout.
+     */
+    void print() const;
+};
 
 
 /** 
@@ -129,6 +194,12 @@ class Transition
         Transition  operator! () const;
 
         /**
+         * Get the predicate representing the set of states reachable from the given state in a
+         * single step
+         */
+        Predicate next(const State& state) const;
+
+        /**
          * CTL quantifiers. Based on given transition, convert predicates to predicates representing
          * quantified versions.
          */
@@ -161,6 +232,23 @@ class Transition
         Predicate AG_fair(const Predicate& pred) const;
         Predicate AU_fair(const Predicate& predl, const Predicate& predr) const;
         Predicate AR_fair(const Predicate& predl, const Predicate& predr) const;
+
+        /**
+         * Genearating witnesses and cex. They take as input the formulae and subformulae for each top
+         * level quantifier, as well as the set of initial states.
+         */
+        Path gen_witness_EF(const Predicate& init, const Predicate& EFf, const Predicate& f) const;
+        Path gen_witness_EG(const Predicate& init, const Predicate& EGf, const Predicate& f) const;
+        Path gen_witness_EU(const Predicate& init, const Predicate& EfUg, const Predicate& f, 
+                            const Predicate& g) const;
+        Path gen_witness_ER(const Predicate& init, const Predicate& EfRg, const Predicate& f, 
+                            const Predicate& g) const;
+        Path gen_cex_AF(const Predicate& init, const Predicate& AFf, const Predicate& f) const;
+        Path gen_cex_AG(const Predicate& init, const Predicate& AGf, const Predicate& f) const;
+        Path gen_cex_AU(const Predicate& init, const Predicate& AfUg, const Predicate& f, 
+                            const Predicate& g) const;
+        Path gen_cex_AR(const Predicate& init, const Predicate& AfRg, const Predicate& f, 
+                            const Predicate& g) const;
 
         
     private:

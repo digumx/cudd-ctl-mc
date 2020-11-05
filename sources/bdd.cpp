@@ -110,6 +110,22 @@ bool BDD::is_zero() const { return node == Cudd_ReadLogicZero(BDD::manager); }
 bool BDD::is_one()  const { return node == Cudd_ReadOne(BDD::manager);  }
 
 
+// Get a satisfying assignment
+std::vector<bool> BDD::get_assign()
+{
+    int* raw_cube;  // This will be managed by the returned DdGen struct, freed by Cudd_GenFree()
+    CUDD_VALUE_TYPE val;
+    if(is_zero()) throw std::runtime_error("Cannot get assignment for an unsat BDD");
+    DdGen* gen = Cudd_FirstCube(BDD::manager, node, &raw_cube, &val);
+    if(!gen) throw std::runtime_error("First cube returns null generator");
+    std::vector<bool> ret(Cudd_ReadSize(BDD::manager));
+    for(size_t i = 0; i < ret.size(); i++)
+        ret[i] = raw_cube[i] != 0;
+    Cudd_GenFree(gen);
+    return ret;
+}
+
+
 // Wrapper for quantifier eleminations
 BDD BDD::existential_abstraction(int var_index) const
 {

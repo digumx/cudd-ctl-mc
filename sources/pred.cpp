@@ -7,6 +7,8 @@
 
 #include <vector>
 #include <stdexcept>
+#include <algorithm>
+#include <iostream>
 
 #include "headers/bdd.hpp"
 
@@ -32,6 +34,87 @@ StateSpace::StateSpace(int st_bits)
 
 bool operator==(const StateSpace& sl, const StateSpace& sr) { return sl.state_bits == sr.state_bits;}
 bool operator!=(const StateSpace& sl, const StateSpace& sr) { return sl.state_bits != sr.state_bits;}
+
+
+
+
+/** 
+ * Impl State
+ */
+State::State(const StateSpace& sp, const std::vector<bool>& assgn) 
+    : space(sp), assign(assgn), bdd_u(true), bdd_v(true)
+{
+    if(sp.state_bits != (int) assign.size())
+        throw std::runtime_error("Size of state assignment and state space do not match");
+    for(size_t i = 0; i < assign.size(); ++i)
+    {    
+        bdd_u &= assign[i] ? BDD((int) i*2) : !BDD((int) i*2);
+        bdd_v &= assign[i] ? BDD((int) i*2 + 1) : !BDD((int) i*2 + 1);
+    }
+}
+
+State::State(const Predicate& pred) 
+    : space(pred.space), assign(pred.space.state_bits), bdd_u(true), bdd_v(true)
+{
+    if(pred.is_false()) throw std::runtime_error("Cannot assign state from empty predicate");
+    std::vector<bool> coded_assign = pred.get_bdd().get_assign();       // This in u vars, ignore v
+    for(size_t i = 0; i < assign.size(); ++i)
+    {
+        assign[i] = coded_assign[2*i];
+        bdd_u &= assign[i] ? BDD((int) i*2) : !BDD((int) i*2);
+        bdd_v &= assign[i] ? BDD((int) i*2 + 1) : !BDD((int) i*2 + 1);
+    }
+}
+
+State& State::operator = (const State& other)
+{
+    if(space != other.space) 
+        throw std::runtime_error("Attempting to assign states over different spaces");
+    assign = other.assign;
+    bdd_u = other.bdd_u;
+    bdd_v = other.bdd_v;
+    return *this;
+}
+
+bool State::operator == (const State& other)
+{
+    if(space != other.space || assign.size() != other.assign.size()) return false;
+    for(size_t i = 0; i < assign.size(); i++) if(assign[i] != other.assign[i]) return false;
+    return true;
+}
+
+std::string State::to_string(size_t n_space) const
+{
+    std::string str = "";
+    for(bool v : assign) str += std::string(n_space, ' ') + (v ? "1" : "0");
+    return str;
+}
+
+ 
+
+/**
+ * Impl path
+ */
+void Path::print() const
+{
+    // header
+    std::cout << (is_finite ? "Finite" : "Infinite") << " path:" << std::endl;
+    for(int i = 0; i < states[0].space.state_bits; i++)
+    {
+        std::string num = std::to_string(i);
+        std::cout << "v" << num << std::string(3 - num.size(), ' ');
+    }
+    std::cout << std::endl;
+    // Print before lasso (or whole path if finite)
+    size_t brk = is_finite ? states.size() : lasso_point;
+    for(size_t i = 0; i < brk; ++i)
+        std::cout << states[i].to_string(3) << std::endl;
+    // Print the lasso
+    if(!is_finite) std::cout << "Begin Loop" << std::endl;
+    for(size_t i = brk; i < states.size(); ++i)
+        std::cout << states[i].to_string(3) << std::endl;
+}
+
 
 
 
@@ -96,6 +179,13 @@ Transition& Transition::operator^=(const Transition& other) { return *this = *th
 
 Transition  Transition::operator! () const { return Transition(space, !t_u_v, !t_v_u); }
 
+
+// Get next
+Predicate Transition::next(const State& st) const
+{
+    if(space != st.space) throw std::runtime_error("Spaces of state and transition do not match");
+    return Predicate(space, (t_u_v && st.bdd_u).existential_abstraction(space.cube_u), false);
+}
 
 // CTL operators
 Predicate Transition::EX(const Predicate& pred) const
@@ -286,8 +376,67 @@ Predicate Transition::AR_fair(const Predicate& predl, const Predicate& predr) co
 }
 
 
-
-
+// Witness or CEX generation
+Path Transition::gen_witness_EF(const Predicate& init, const Predicate& EFf,
+                                const Predicate& f) const
+{
+    return gen_witness_EU(init, EFf, Predicate(init.space, true), f);
+}
+Path Transition::gen_witness_EG(const Predicate& init, const Predicate& EGf, 
+                                const Predicate& f) const
+{
+    Path ret; ret.is_finite = false;
+    State st(init && EGf);
+    std::vector<State>::iterator loc;
+    while((loc = std::find(ret.states.begin(), ret.states.end(), st)) == ret.states.end())
+    {
+        ret.states.push_back(st);
+        st = State(next(st) && EGf);
+    }
+    ret.lasso_point = loc - ret.states.begin();
+    return ret;
+}
+Path Transition::gen_witness_EU(const Predicate& init, const Predicate& EfUg, const Predicate& f, 
+                                const Predicate& g) const
+{
+    Predicate nxt = init && EfUg;
+    Predicate end = nxt && g;
+    Path ret; ret.is_finite = true;
+    while(end.is_false())
+    {
+        State st(nxt);
+        nxt = next(st) && EfUg;
+        ret.states.push_back(st);
+        end = nxt && g;
+    }
+    ret.states.push_back(State(end));
+    return ret;
+}
+Path Transition::gen_witness_ER(const Predicate& init, const Predicate& EfRg, const Predicate& f, 
+                                const Predicate& g) const
+{
+    return gen_witness_EU(init, EfRg, f, f && g);
+}
+Path Transition::gen_cex_AF(const Predicate& init, const Predicate& AFf, 
+                                const Predicate& f) const
+{
+    return gen_witness_EG(init, !AFf /*=EG!f*/, !f);
+}
+Path Transition::gen_cex_AG(const Predicate& init, const Predicate& AGf, 
+                                const Predicate& f) const
+{
+    return gen_witness_EF(init, !AGf /*=EF!f*/, !f);
+}
+Path Transition::gen_cex_AU(const Predicate& init, const Predicate& AfUg, const Predicate& f, 
+                                const Predicate& g) const
+{
+    return gen_witness_ER(init, !AfUg /*=E!fR!g*/, !f, !g);
+}
+Path Transition::gen_cex_AR(const Predicate& init, const Predicate& AfRg, const Predicate& f, 
+                                const Predicate& g) const
+{
+    return gen_witness_EU(init, !AfRg /*=E!fU!g*/, !f, !g);
+}
 
 
 
