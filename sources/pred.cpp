@@ -7,8 +7,6 @@
 
 #include <vector>
 #include <stdexcept>
-#include <string>       //DEBUG
-#include <iostream>     //DEBUG
 
 #include "headers/bdd.hpp"
 
@@ -221,27 +219,13 @@ Predicate Transition::EG_fair(const Predicate& pred) const
         throw std::runtime_error("Transition and predicate state spaces do not match");
     Predicate acc(space, false);
     Predicate nxt(space, true);
-    int c = 0; //DEBUG
     while(nxt != acc) 
     {
         acc = nxt;
         nxt = pred;
         for(std::vector<Predicate>::const_iterator i = fairness.begin(); i != fairness.end(); ++i)
-        {
             nxt &= EX(EU(pred, *i && acc));
-            // DEBUG
-            //(*i).get_bdd().save_dot("out/fairness.dot");
-            //(*i && acc).get_bdd().save_dot("out/fairness_and_acc_" + std::to_string(c) + ".dot");
-            //EU(pred, *i && acc).get_bdd().save_dot("out/eu_i_and_acc_" + std::to_string(c) + ".dot");
-            //EX(EU(pred, *i && acc)).get_bdd().save_dot("out/fairness_contrib_" + std::to_string(c) +
-            //        ".dot");
-        }   
-        // DEBUG
-        acc.get_bdd().save_dot("out/dbg_acc_" + std::to_string(c) + ".dot");
-        nxt.get_bdd().save_dot("out/dbg_nxt_" + std::to_string(c) + ".dot");
-        c++;
     }
-    //std::cout << "Number of EG_fair iterations " << c << std::endl; //DEBUG
     return acc;
 }
 Predicate Transition::EU_fair(const Predicate& predl, const Predicate& predr) const
